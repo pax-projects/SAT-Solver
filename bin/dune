@@ -1,0 +1,6 @@
+(executable
+ (public_name dpll_solver)
+ (name main)
+ (libraries dpll_solver))
+
+(env (dev (flags :standard -warn-error -27-32-39)))

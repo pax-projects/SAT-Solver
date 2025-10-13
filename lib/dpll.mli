@@ -3,13 +3,13 @@
     Un entier positif n représente le littéral n, 
     un entier négatif -n représente le littéral ¬n.
   *)
-type literal 
+type literal = int
 (** Une clause est une disjonction de littéraux. 
     On la représente ici simplement par une liste. *)
-type clause
+type clause = literal list
 (** Une formule en CNF est une conjonction de clauses.
     On la représente ici simplement par une liste de clauses. *)
-type cnf 
+type cnf = clause list
 type interpretation 
 type result = Sat of interpretation | Unsat
 
@@ -30,3 +30,5 @@ val solver_split : cnf -> result
     Cette fonction utilise l'algorithme DPLL.
     *)
 val solver_dpll : cnf -> result
+
+val get_unitary : cnf -> literal option 

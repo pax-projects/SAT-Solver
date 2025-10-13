@@ -83,3 +83,4 @@ define run_cmd
 	@echo "│ => $(GREEN)Operation successful$(RESET)"
 endef
 
+.PHONY: all run solve test clean fclean re check help

@@ -1,6 +1,6 @@
 (test
- (name test_dpll_solver)
- (libraries dpll_solver)
+ (name dpll_test)
+ (libraries dpll_solver ounit2)
 )
 
  (env (dev (flags :standard -warn-error -26-27-32)))

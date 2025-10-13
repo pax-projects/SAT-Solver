@@ -85,7 +85,7 @@ let rec is_pure (clauses: cnf) (l: literal) =
   | [] -> true
   | clause::tl -> match clause with
     | [] -> is_pure tl l
-    | _ -> if not (exists clause -l) then (* check if negation doesn't exist *)
+    | _ -> if not (exists (fun elm -> elm = -l) clause) then (* check if negation doesn't exist *)
         is_pure tl l
       else
         false
@@ -98,20 +98,19 @@ let rec is_pure (clauses: cnf) (l: literal) =
 let get_pure (clauses: cnf) = 
   let rec aux (clauses: cnf) (veto: literal list) = match clauses with
   | [] -> None
-  | hd::tl -> let rec iterate l = match l with
+  | hd::tl -> let rec iterate (l: clause) (veto: literal list) = match l with
       | [] -> aux tl veto
-      | hd'::tl' -> if (exists veto (abs hd')) then
-         iterate tl'
+      | hd'::tl' -> if (exists (fun elm -> elm = (abs hd')) veto) then
+         iterate tl' veto
         else (
           if (is_pure (tl'::tl) hd') then (* Avoiding iterate throw the just picked element *)
             Some hd'
           else
-            iterate tl'
+            aux tl (hd'::veto)
         )
-    in iterate(l)
-  in aux cnf []
+    in iterate hd veto
+  in aux clauses []
 ;;
-  
 
 (** get_unitary : cnf -> literal option
     - si `clauses' contient au moins une clause unitaire, retourne

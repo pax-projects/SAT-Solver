@@ -80,13 +80,38 @@ let solver_split clauses = solver_split_rec clauses []
 
 (** Solveur dpll récursif *)
 
+let rec is_pure (clauses: cnf) (l: literal) = 
+  match clauses with 
+  | [] -> true
+  | clause::tl -> match clause with
+    | [] -> is_pure tl l
+    | _ -> if not (exists clause -l) then (* check if negation doesn't exist *)
+        is_pure tl l
+      else
+        false
+;;
+
 (** get_pure : cnf -> literal option
     - si `clauses' contient au moins un littéral pur, retourne
       ce littéral ;
     - sinon renvoie None *)
-let get_pure clauses =
-  (* à compléter *)
-  0
+let get_pure (clauses: cnf) = 
+  let rec aux (clauses: cnf) (veto: literal list) = match clauses with
+  | [] -> None
+  | hd::tl -> let rec iterate l = match l with
+      | [] -> aux tl veto
+      | hd'::tl' -> if (exists veto (abs hd')) then
+         iterate tl'
+        else (
+          if (is_pure (tl'::tl) hd') then (* Avoiding iterate throw the just picked element *)
+            Some hd'
+          else
+            iterate tl'
+        )
+    in iterate(l)
+  in aux cnf []
+;;
+  
 
 (** get_unitary : cnf -> literal option
     - si `clauses' contient au moins une clause unitaire, retourne

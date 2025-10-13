@@ -92,9 +92,14 @@ let get_pure clauses =
     - si `clauses' contient au moins une clause unitaire, retourne
       le littéral de cette clause unitaire ;
     - sinon renvoie None *)
-let get_unitary clauses =
-  (* à compléter *)
-  0
+let rec get_unitary: cnf -> literal option = function 
+  | [] -> None
+  | hd::tl -> 
+      if length hd = 1 then 
+        (nth_opt hd 0)
+      else 
+        get_unitary tl
+;;
 
 (** solver_dpll_rec : cnf -> interpretation -> result *)
 let rec solver_dpll_rec clauses interpretation =

@@ -76,40 +76,51 @@ let rec solver_split_rec clauses interpretation =
   | Unsat -> solver_split_rec (simplify (-l) clauses) ((-l)::interpretation)
   | _    -> branch
 
-let solver_split clauses = solver_split_rec clauses []
+let solver_split clauses = solver_split_rec clauses [];;
 
 (** Solveur dpll récursif *)
+module LiteralSet = Set.Make(Int);;
 
-let rec is_pure (clauses: cnf) (l: literal) = 
-  match clauses with 
-  | [] -> true
-  | clause::tl -> match clause with
-    | [] -> is_pure tl l
-    | _ -> if not (exists (fun elm -> elm = -l) clause) then (* check if negation doesn't exist *)
-        is_pure tl l
-      else
-        false
-;;
+(** [flatten_clauses_to_set clauses:cnf] takes an input of type literal list list
+  and returns a set of the flatten list.
+
+  Example:
+  flatten_clauses_to_set [[1; 2; 3]; [2; -2; -4; 5]] -> A set of (1, 2, -2, 3, -4, 5)
+
+  [Complexity]: O(N) with N the total number of literals
+
+*)
+let flatten_clauses_to_set (clauses: cnf): LiteralSet.t = LiteralSet.of_list (flatten clauses);;
 
 (** get_pure : cnf -> literal option
     - si `clauses' contient au moins un littéral pur, retourne
       ce littéral ;
     - sinon renvoie None *)
+(**
+  [Complexity]:
+  - LiteralSet.filter   -> O(N * log(N))
+  - LiteralSet.map      -> O(N * log(N))
+  - LiteralSet.elements -> O(N)
+
+  - LiteralSet.union    -> O(N + M) ~ O(max(N, M))
+  - LiteralSet.diff     -> O(N + M) ~ O(max(N, M)) // Same as union
+  - LiteralSet.inter    -> O(N + M) ~ O(max(N, M)) // Also same as union
+
+  The maximum complexity in the worst cases should be about O(3 * [N * log(N)] + 4 * N) ~ O(N*log(N))
+ *)
 let get_pure (clauses: cnf) = 
-  let rec aux (clauses: cnf) (veto: literal list) = match clauses with
+  (* Separates neg from pos by using sets *)
+  let res = 
+    let aux flatten_clauses = 
+      let pos = LiteralSet.filter (fun lit -> lit >= 0) flatten_clauses in
+      let neg = flatten_clauses
+        |> LiteralSet.filter (fun lit -> lit <= 0) 
+        |> LiteralSet.map abs
+      in LiteralSet.diff (LiteralSet.union pos neg) (LiteralSet.inter pos neg) |> LiteralSet.elements
+    in aux (flatten_clauses_to_set clauses)
+  in match res with
   | [] -> None
-  | hd::tl -> let rec iterate (l: clause) (veto: literal list) = match l with
-      | [] -> aux tl veto
-      | hd'::tl' -> if (exists (fun elm -> elm = (abs hd')) veto) then
-         iterate tl' veto
-        else (
-          if (is_pure (tl'::tl) hd') then (* Avoiding iterate throw the just picked element *)
-            Some hd'
-          else
-            aux tl (hd'::veto)
-        )
-    in iterate hd veto
-  in aux clauses []
+  | _ -> Some (nth res 0) (* TODO: Change to full literal option list later (for optimisations) *)
 ;;
 
 (** get_unitary : cnf -> literal option
@@ -131,3 +142,8 @@ let rec solver_dpll_rec clauses interpretation =
   Unsat
 
 let solver_dpll clauses = solver_dpll_rec clauses []
+
+module Test_expose = struct 
+  let get_unitary = get_unitary
+  let get_pure = get_pure
+end;;

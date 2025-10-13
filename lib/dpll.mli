@@ -31,4 +31,10 @@ val solver_split : cnf -> result
     *)
 val solver_dpll : cnf -> result
 
-val get_unitary : cnf -> literal option 
+module Test_expose: sig
+    val get_unitary : cnf -> literal option
+
+    val get_pure : cnf -> literal option
+end;;
+
+ 

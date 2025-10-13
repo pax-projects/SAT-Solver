@@ -1,7 +1,8 @@
 open Dpll_solver
 
 let usage () =
-	Printf.printf "Usage: %s <input_file.cnf>\n" Sys.argv.(0);
+	Printf.sprintf "Usage: %s <input_file.cnf>\n" Sys.argv.(0)
+	|> Logger.log Logger.ERROR;
 	exit 1
 
 let () =

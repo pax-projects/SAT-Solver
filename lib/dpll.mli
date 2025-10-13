@@ -11,22 +11,22 @@ type clause
     On la représente ici simplement par une liste de clauses. *)
 type cnf 
 type interpretation 
-type resultat = Sat of interpretation | Unsat
+type result = Sat of interpretation | Unsat
 
 (** Cette fonction prend en argument une liste d'entiers et renvoie une cnf *)
 val cnf_of_int_list_list : int list list -> cnf
 
 (** Cette fonction prend un argument un objet de type resulat et l'affiche à l'écran. *)
-val print_modele : resultat -> unit
+val print_model : result -> unit
 
 (** Cette fonction prend en argument une formule en CNF et renvoie 
     une interprétation qui la satisfait si elle existe, ou Unsat sinon.
     Cette fonction utilise l'algorithme naïf qui teste toutes les branchements possibles.
     *)
-val solveur_split : cnf -> resultat
+val solver_split : cnf -> result
 
 (** Cette fonction prend en argument une formule en CNF et renvoie 
     une interprétation qui la satisfait si elle existe, ou Unsat sinon.
     Cette fonction utilise l'algorithme DPLL.
     *)
-val solveur_dpll : cnf -> resultat
+val solver_dpll : cnf -> result

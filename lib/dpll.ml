@@ -41,64 +41,64 @@ type literal = int
 type clause = literal list
 type cnf = clause list
 type interpretation = int list
-type resultat = Sat of interpretation | Unsat
+type result = Sat of interpretation | Unsat
 
 (** Avec ce choix de type cette fonction est l'identité. *)
 let cnf_of_int_list_list (l: int list list) : cnf = l
 
-(** print_modele : resultat -> unit afficher le résultat *)
-let print_modele: resultat -> unit = function
+(** print_model : result -> unit afficher le résultat *)
+let print_model: result -> unit = function
   | Unsat   -> print_string "UNSAT\n"
   | Sat modele -> print_string "SAT\n";
-     let modele_trie = sort (fun i j -> (abs i) - (abs j)) modele in
-     List.iter (fun i -> print_int i; print_string " ") modele_trie;
+     let model_sorted = sort (fun i j -> (abs i) - (abs j)) modele in
+     List.iter (fun i -> print_int i; print_string " ") model_sorted;
      print_string "0\n"
 
-(** simplifie : literal -> cnf -> cnf 
+(** simplify : literal -> cnf -> cnf 
    applique la simplification de l'ensemble des clauses en mettant
    le littéral l à vrai *)
-let simplifie l clauses =
+let simplify l clauses =
   (* à compléter *)
   []
 
-(** solveur_split_rec : cnf -> interpretation -> resultat
-   exemple d'utilisation de `simplifie' cette fonction ne doit pas être modifiée, sauf si vous changez 
-   le type de la fonction simplifie *)
-let rec solveur_split_rec clauses interpretation =
+(** solver_split_rec : cnf -> interpretation -> result
+   exemple d'utilisation de `simplify' cette fonction ne doit pas être modifiée, sauf si vous changez 
+   le type de la fonction simplify *)
+let rec solver_split_rec clauses interpretation =
   (* l'ensemble vide de clauses est satisfiable *)
   if clauses = [] then Sat interpretation else
   (* la clause vide n'est jamais satisfiable *)
   if mem [] clauses then Unsat else
   (* branchement *) 
   let l = hd (hd clauses) in
-  let branche = solveur_split_rec (simplifie l clauses) (l::interpretation) in
-  match branche with
-  | Unsat -> solveur_split_rec (simplifie (-l) clauses) ((-l)::interpretation)
-  | _    -> branche
+  let branch = solver_split_rec (simplify l clauses) (l::interpretation) in
+  match branch with
+  | Unsat -> solver_split_rec (simplify (-l) clauses) ((-l)::interpretation)
+  | _    -> branch
 
-let solveur_split clauses = solveur_split_rec clauses []
+let solver_split clauses = solver_split_rec clauses []
 
 (** Solveur dpll récursif *)
 
-(** pur : cnf -> literal option
+(** get_pure : cnf -> literal option
     - si `clauses' contient au moins un littéral pur, retourne
       ce littéral ;
     - sinon renvoie None *)
-let pur clauses =
+let get_pure clauses =
   (* à compléter *)
   0
 
-(** unitaire : cnf -> literal option
+(** get_unitary : cnf -> literal option
     - si `clauses' contient au moins une clause unitaire, retourne
       le littéral de cette clause unitaire ;
     - sinon renvoie None *)
-let unitaire clauses =
+let get_unitary clauses =
   (* à compléter *)
   0
 
-(** solveur_dpll_rec : cnf -> interpretation -> resultat *)
-let rec solveur_dpll_rec clauses interpretation =
+(** solver_dpll_rec : cnf -> interpretation -> result *)
+let rec solver_dpll_rec clauses interpretation =
   (* à compléter *)
   Unsat
 
-let solveur_dpll clauses = solveur_dpll_rec clauses []
+let solver_dpll clauses = solver_dpll_rec clauses []

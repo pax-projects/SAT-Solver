@@ -13,6 +13,9 @@ type cnf = clause list
 type interpretation 
 type result = Sat of interpretation | Unsat
 
+module LiteralSet : Set.S with type elt = int
+module ClauseSet : Set.S with type elt = LiteralSet.t
+
 (** Cette fonction prend en argument une liste d'entiers et renvoie une cnf *)
 val cnf_of_int_list_list : int list list -> cnf
 
@@ -35,6 +38,10 @@ module Test_expose: sig
     val get_unitary : cnf -> literal option
 
     val get_pure : cnf -> literal option
+
+    val simplify : literal -> cnf -> cnf
+
+    val cnf_to_clause_set : cnf -> ClauseSet.t
 end;;
 
  

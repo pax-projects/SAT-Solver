@@ -1,5 +1,9 @@
 open List
 
+(* Creating a new set to store literals *)
+module LiteralSet = Set.Make(Int);;
+module ClauseSet = Set.Make(LiteralSet);;
+
 (** Ce fichier contient les fonctions à compléter. *)
 
 (** Fonctions utilitaires. *)
@@ -43,6 +47,8 @@ type cnf = clause list
 type interpretation = int list
 type result = Sat of interpretation | Unsat
 
+let cnf_to_clause_set (clauses: cnf): ClauseSet.t = ClauseSet.of_list (map (LiteralSet.of_list) clauses);;
+
 (** Avec ce choix de type cette fonction est l'identité. *)
 let cnf_of_int_list_list (l: int list list) : cnf = l
 
@@ -58,8 +64,14 @@ let print_model: result -> unit = function
    applique la simplification de l'ensemble des clauses en mettant
    le littéral l à vrai *)
 let simplify l clauses =
-  (* à compléter *)
-  []
+  (* Delete every clause where l exists *)
+  (* TODO: Moreover, here the program takes list and convert them to Sets; this will be changed *)
+  let to_delete = (find_all (mem l) clauses) |> cnf_to_clause_set in
+  let full_set = clauses |> cnf_to_clause_set in
+  (ClauseSet.diff full_set to_delete)
+  |> ClauseSet.elements
+  |> map (LiteralSet.elements)
+;;
 
 (** solver_split_rec : cnf -> interpretation -> result
    exemple d'utilisation de `simplify' cette fonction ne doit pas être modifiée, sauf si vous changez 
@@ -79,7 +91,6 @@ let rec solver_split_rec clauses interpretation =
 let solver_split clauses = solver_split_rec clauses [];;
 
 (** Solveur dpll récursif *)
-module LiteralSet = Set.Make(Int);;
 
 (** [flatten_clauses_to_set clauses:cnf] takes an input of type literal list list
   and returns a set of the flatten list.
@@ -146,4 +157,7 @@ let solver_dpll clauses = solver_dpll_rec clauses []
 module Test_expose = struct 
   let get_unitary = get_unitary
   let get_pure = get_pure
+  let simplify = simplify
+
+  let cnf_to_clause_set = cnf_to_clause_set
 end;;

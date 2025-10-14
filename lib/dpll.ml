@@ -67,8 +67,10 @@ let simplify l clauses =
   (* Delete every clause where l exists *)
   (* TODO: Moreover, here the program takes list and convert them to Sets; this will be changed *)
   let to_delete = (find_all (mem l) clauses) |> cnf_to_clause_set in
-  let full_set = clauses |> cnf_to_clause_set in
-  (ClauseSet.diff full_set to_delete)
+  let full_set = clauses |> cnf_to_clause_set 
+  |> (ClauseSet.map (fun clause -> LiteralSet.remove (-l) clause)) (* Remove all opposite literals *)
+  |> ClauseSet.filter (fun clause -> not (LiteralSet.is_empty clause)) (* Removes all empty clauses *)
+  in (ClauseSet.diff full_set to_delete)
   |> ClauseSet.elements
   |> map (LiteralSet.elements)
 ;;

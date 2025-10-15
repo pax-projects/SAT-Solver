@@ -148,10 +148,55 @@ let rec get_unitary: cnf -> literal option = function
         get_unitary tl
 ;;
 
+(** evaluate : cnf -> interpretation -> bool *)
+let rec evaluate clauses interpretation =
+  match interpretation with
+  | [] -> length clauses = 0
+  | hd::tl -> evaluate (simplify hd clauses) tl
+;;
+
+type literal_in_cnf = EmptyCnf | EmptyClause | Literal of literal;;
+
+let rec get_one_literal clauses : literal_in_cnf =
+  match clauses with
+    | [] -> EmptyCnf
+    | hd:: _ -> 
+        match hd with
+          | [] -> EmptyClause
+          | hd'::_ -> (Literal hd') ;;
+
+       
 (** solver_dpll_rec : cnf -> interpretation -> result *)
+
 let rec solver_dpll_rec clauses interpretation =
-  (* à compléter *)
-  Unsat
+  if evaluate clauses interpretation then
+    Sat(interpretation)
+  else (
+    match get_unitary clauses with
+    | Some unit_lit ->
+      let new_clauses = simplify unit_lit clauses in
+      let new_interpretation = (unit_lit :: interpretation) in
+      solver_dpll_rec new_clauses new_interpretation 
+
+    | None -> match get_pure clauses with
+      | Some pure_lit -> 
+        let new_clauses = simplify pure_lit clauses in
+        let new_interpretation = (pure_lit :: interpretation) in
+        solver_dpll_rec new_clauses new_interpretation
+
+      | None -> match get_one_literal clauses with
+        | EmptyCnf -> Sat(interpretation)
+        | EmptyClause -> Unsat
+        | Literal lit -> 
+          let try_interpretation =
+            solver_dpll_rec (simplify lit clauses) (lit :: interpretation) 
+          in
+
+          match try_interpretation with
+          | Sat i -> Sat i
+          | Unsat -> 
+            solver_dpll_rec (simplify (-lit) clauses) ((-lit) :: interpretation) 
+  );;
 
 let solver_dpll clauses = solver_dpll_rec clauses []
 

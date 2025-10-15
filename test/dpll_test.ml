@@ -59,8 +59,8 @@ let test_simplify = "test suite for simplify" >::: [
 
 
 let test_suite = "DPLL internal tests" >::: [
-	(* test_get_unitary;
-	test_get_pure; *)
+	test_get_unitary;
+	test_get_pure;
 	test_simplify;
 ];;
 

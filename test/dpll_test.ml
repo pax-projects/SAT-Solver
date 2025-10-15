@@ -2,7 +2,7 @@ open OUnit2
 open Dpll_solver.Dpll
 
 let assert_true = assert_equal true;;
-let assert_false = assert_equal false;;
+(* let assert_false = assert_equal false;; *)
 let assert_equal_option = (fun a b -> assert_true (Option.equal (=) a b));;
 let assert_equal_cnf l l' = 
 	let fst_set = Test_expose.cnf_to_clause_set l in

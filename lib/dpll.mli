@@ -24,12 +24,6 @@ val print_model : result -> unit
 
 (** Cette fonction prend en argument une formule en CNF et renvoie 
     une interprétation qui la satisfait si elle existe, ou Unsat sinon.
-    Cette fonction utilise l'algorithme naïf qui teste toutes les branchements possibles.
-    *)
-val solver_split : cnf -> result
-
-(** Cette fonction prend en argument une formule en CNF et renvoie 
-    une interprétation qui la satisfait si elle existe, ou Unsat sinon.
     Cette fonction utilise l'algorithme DPLL.
     *)
 val solver_dpll : cnf -> result

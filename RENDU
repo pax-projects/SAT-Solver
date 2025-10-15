@@ -21,7 +21,9 @@ Questions sur votre code
    et que ensuite `./dpll sudoku-4x4.cnf` donne la réponse attendue (voir
    fichier README) ?
 
-**à remplir**
+- La commande `make` s'éxecute sans erreurs ni warnings => tout compile correctement.
+- La commande `make solve FILE=/examples/SAT/sudoku-4x4.cnf donne bien le résultat SAT 
+  et l'interpretation correct associée.
 
 ---
 
@@ -32,7 +34,10 @@ Questions sur votre code
    - Si non, expliquez en quelques phrases en français comment
      fonctionne votre implémentation de `simplifie`.
 
-**à remplir**
+Nous n'avons pas utilisé `filter_map`. 
+Notre fonction simplifie itère à travers notre cnf et :
+- supprime chaque clause disjonctive contenant le litteral `l` que l'on souhaite traité
+- supprime chaque litteral `-l` de chaque clause disjonctive
 
 ---
 
@@ -54,7 +59,13 @@ Questions sur votre code
    quelques phrases en français comment ces fonctions auxiliaires sont
    utilisées dans votre implémentation de la fonction `pur`.
 
-**à remplir**
+Travaillant sur des ensembles (Set), nous avons utilisé les fonctions auxiliaires suivantes :
+- LiteralSet.filter (afin de séparer les closes négatives des positives)
+- LiteralSet.map abs (afin de rendre les négatives (déjà séparées) positive et rendre une comparaison entre les ensembles de clauses plus simple)
+- LiteralSet.union (pour avoir l'ensemble des variables (sans - devant))
+- LiteralSet.inter (pour connaître toutes les variables non pures)
+- LiteralSet.diff (afin de séparer les variables pures de toutes les autres)
+- flatten_clauses (afin de transformer une cnf en LiteralSet.t)
 
 ---
 
@@ -67,7 +78,8 @@ Questions sur votre code
 ---
 5. Quelle a été votre méthodologie de test ?
 
-**à remplir**
+Nous avons employé une méthodologie de tests unitaires de telle sorte à ce que lorsqu'un bug survient, un nouveau test est créer afin de s'assurer que ce bug precis ne se reproduise pas.
+Dans le fichier dpll.mli nous avons explicité l'API publique ainsi qu'un module Test_expose rendant des fonctions publiques afin de permettre des tests unitaires séparés dans le dossier test.
 
 ---
 6. Avez-vous d'autres remarques sur votre rendu ? (question optionnelle)

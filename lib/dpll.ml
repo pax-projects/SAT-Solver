@@ -34,7 +34,7 @@ let print_model: result -> unit = function
   * [Complexity]:
   * - TODO
 *)
-let simplify l clauses =
+let simplify (l: literal) (clauses: cnf) =
   (* TODO: Moreover, here the program takes list and convert them to Sets; this will be changed *)
   let to_delete = (find_all (mem l) clauses) |> cnf_to_clause_set in
   let full_set = clauses |> cnf_to_clause_set 
@@ -73,7 +73,7 @@ let flatten_clauses_to_set (clauses: cnf): LiteralSet.t = LiteralSet.of_list (fl
 let get_pure (clauses: cnf) = 
   (* Separates neg from pos by using sets *)
   let res = 
-    let aux flatten_clauses = 
+    let aux (flatten_clauses: LiteralSet.t) = 
       let pos = LiteralSet.filter (fun lit -> lit >= 0) flatten_clauses in
       let neg = flatten_clauses
         |> LiteralSet.filter (fun lit -> lit <= 0) 
@@ -131,26 +131,26 @@ let rec solver_dpll_rec (clauses: cnf) (inter: interpretation) =
     Sat(inter)
   else (
     match get_unitary clauses with
-      | Some unit_lit ->
-        let new_clauses = simplify unit_lit clauses in
-        let new_inter = (unit_lit :: inter) in
-        solver_dpll_rec new_clauses new_inter 
+    | Some unit_lit ->
+      let new_clauses = simplify unit_lit clauses in
+      let new_inter = (unit_lit :: inter) in
+      solver_dpll_rec new_clauses new_inter 
 
-      | None -> match get_pure clauses with
-        | Some pure_lit -> 
-          let new_clauses = simplify pure_lit clauses in
-          let new_inter = (pure_lit :: inter) in
-          solver_dpll_rec new_clauses new_inter
+    | None -> match get_pure clauses with
+      | Some pure_lit -> 
+        let new_clauses = simplify pure_lit clauses in
+        let new_inter = (pure_lit :: inter) in
+        solver_dpll_rec new_clauses new_inter
 
-        | None -> match get_first_available_literal clauses with
-          | None -> if (is_sat clauses inter)
-            then Sat(inter)
-            else Unsat
-          | Some lit -> let try_inter = 
-            solver_dpll_rec (simplify lit clauses) (lit::inter) in
-            match try_inter with
-              | Sat _ -> try_inter
-              | Unsat -> solver_dpll_rec (simplify (-lit) clauses) ((-lit)::inter) 
+      | None -> match get_first_available_literal clauses with
+        | None -> if (is_sat clauses inter)
+          then Sat(inter)
+          else Unsat
+        | Some lit -> let try_inter = 
+          solver_dpll_rec (simplify lit clauses) (lit :: inter) in
+          match try_inter with
+            | Sat _ -> try_inter
+            | Unsat -> solver_dpll_rec (simplify (-lit) clauses) ((-lit) :: inter) 
   );;
 
 (** solver_dpll: cnf -> result

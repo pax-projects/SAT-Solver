@@ -114,15 +114,13 @@ let rec evaluate (clauses: cnf) (inter: interpretation) =
   | hd::tl -> evaluate (simplify hd clauses) tl
 ;;
 
-type literal_in_cnf = EmptyCnf | EmptyClause | Literal of literal;;
-
-let get_one_literal clauses : literal_in_cnf =
+let get_one_literal (clauses: cnf) =
   match clauses with
-    | [] -> EmptyCnf
+    | [] -> None
     | hd:: _ -> 
         match hd with
-          | [] -> EmptyClause
-          | hd'::_ -> (Literal hd')
+          | [] -> None
+          | hd'::_ -> (Some hd')
 ;;
 
 
@@ -149,17 +147,14 @@ let rec solver_dpll_rec clauses interpretation =
         solver_dpll_rec new_clauses new_interpretation
 
       | None -> match get_one_literal clauses with
-        | EmptyCnf -> Sat(interpretation)
-        | EmptyClause -> Unsat
-        | Literal lit -> 
-          let try_interpretation =
+        | None -> if (evaluate clauses interpretation)
+          then Sat(interpretation)
+          else Unsat
+        | Some lit -> let try_interpretation =
             solver_dpll_rec (simplify lit clauses) (lit :: interpretation) 
-          in
-
-          match try_interpretation with
-          | Sat i -> Sat i
-          | Unsat -> 
-            solver_dpll_rec (simplify (-lit) clauses) ((-lit) :: interpretation) 
+          in match try_interpretation with
+          | Sat _ -> try_interpretation
+          | Unsat -> solver_dpll_rec (simplify (-lit) clauses) ((-lit) :: interpretation) 
   );;
 
 (** solver_dpll: cnf -> result

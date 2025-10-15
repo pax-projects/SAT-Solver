@@ -69,7 +69,6 @@ let simplify l clauses =
   let to_delete = (find_all (mem l) clauses) |> cnf_to_clause_set in
   let full_set = clauses |> cnf_to_clause_set 
   |> (ClauseSet.map (fun clause -> LiteralSet.remove (-l) clause)) (* Remove all opposite literals *)
-  |> ClauseSet.filter (fun clause -> not (LiteralSet.is_empty clause)) (* Removes all empty clauses *)
   in (ClauseSet.diff full_set to_delete)
   |> ClauseSet.elements
   |> map (LiteralSet.elements)
@@ -149,6 +148,22 @@ let rec get_unitary: cnf -> literal option = function
         get_unitary tl
 ;;
 
+(** evaluate : cnf -> interpretation -> bool *)
+let rec evaluate clauses interpretation =
+  match interpretation with
+  | [] -> length clauses = 0
+  | hd::tl -> evaluate (simplify hd clauses) tl
+;;
+
+let get_one_literal clauses =
+  match clauses with
+    | [] -> None
+    | hd:: _ -> 
+        match hd with
+          | [] -> None
+          | hd'::_ -> (Some hd') ;;
+
+       
 (** solver_dpll_rec : cnf -> interpretation -> result *)
 
   let rec solver_dpll_rec clauses interpretation =
@@ -169,7 +184,7 @@ let rec get_unitary: cnf -> literal option = function
           solver_dpll_rec new_clauses new_interpretation
 
         | None ->
-          match get_all_literal clauses with
+          match get_one_literal clauses with
           | None -> Sat(interpretation)  
           | Some lit -> 
             let try_interpretation =

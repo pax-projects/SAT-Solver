@@ -46,8 +46,8 @@ let test_simplify = "test suite for simplify" >::: [
 	"[multi-clause removing literal 1] expected: [[2;3;4]]" >:: (fun _ ->
 		assert_equal_cnf [] (Test_expose.simplify 1 [[1; 2; 3; 4]])
 	);
-	"[multi-clause with conflict] expected: []" >:: (fun _ ->
-		assert_equal_cnf [] (Test_expose.simplify 1 [[-1]; [1; 2]])
+	"[multi-clause with conflict] expected: [[]]" >:: (fun _ ->
+		assert_equal_cnf [[]] (Test_expose.simplify 1 [[-1]; [1; 2]])
 	);
 	"[no literal to remove] expected: [[2;3]; [3;4]]" >:: (fun _ ->
 		assert_equal_cnf [[2;3]; [3;4]] (Test_expose.simplify 1 [[2;3]; [-1; 3;4]])

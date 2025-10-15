@@ -101,28 +101,24 @@ let rec get_unitary: cnf -> literal option = function
         get_unitary tl
 ;;
 
-(** evaluate : cnf -> interpretation -> bool
+(** is_sat : cnf -> interpretation -> bool
   * Checks the correctness of an interpretation simplifying the CNF by
   * each interpretaition literal.
 
   * [Complexity]:
   * - TODO
 *)
-let rec evaluate (clauses: cnf) (inter: interpretation) =
-  match inter with
+let rec is_sat (clauses: cnf) (inter: interpretation) = match inter with
   | [] -> length clauses = 0
-  | hd::tl -> evaluate (simplify hd clauses) tl
+  | hd::tl -> is_sat (simplify hd clauses) tl
 ;;
 
-let get_one_literal (clauses: cnf) =
-  match clauses with
+let get_first_available_literal (clauses: cnf) = match clauses with
+  | [] -> None
+  | hd:: _ -> match hd with
     | [] -> None
-    | hd:: _ -> 
-        match hd with
-          | [] -> None
-          | hd'::_ -> (Some hd')
+    | hd'::_ -> (Some hd')
 ;;
-
 
 (** solver_dpll_rec : cnf -> interpretation -> result
   * Executes a backtracking algorithm using all the above functions.
@@ -130,31 +126,31 @@ let get_one_literal (clauses: cnf) =
   * [Complexity]:
   * - TODO
 *)
-let rec solver_dpll_rec clauses interpretation =
-  if evaluate clauses interpretation then
-    Sat(interpretation)
+let rec solver_dpll_rec (clauses: cnf) (inter: interpretation) =
+  if is_sat clauses inter then
+    Sat(inter)
   else (
     match get_unitary clauses with
-    | Some unit_lit ->
-      let new_clauses = simplify unit_lit clauses in
-      let new_interpretation = (unit_lit :: interpretation) in
-      solver_dpll_rec new_clauses new_interpretation 
+      | Some unit_lit ->
+        let new_clauses = simplify unit_lit clauses in
+        let new_inter = (unit_lit :: inter) in
+        solver_dpll_rec new_clauses new_inter 
 
-    | None -> match get_pure clauses with
-      | Some pure_lit -> 
-        let new_clauses = simplify pure_lit clauses in
-        let new_interpretation = (pure_lit :: interpretation) in
-        solver_dpll_rec new_clauses new_interpretation
+      | None -> match get_pure clauses with
+        | Some pure_lit -> 
+          let new_clauses = simplify pure_lit clauses in
+          let new_inter = (pure_lit :: inter) in
+          solver_dpll_rec new_clauses new_inter
 
-      | None -> match get_one_literal clauses with
-        | None -> if (evaluate clauses interpretation)
-          then Sat(interpretation)
-          else Unsat
-        | Some lit -> let try_interpretation =
-            solver_dpll_rec (simplify lit clauses) (lit :: interpretation) 
-          in match try_interpretation with
-          | Sat _ -> try_interpretation
-          | Unsat -> solver_dpll_rec (simplify (-lit) clauses) ((-lit) :: interpretation) 
+        | None -> match get_first_available_literal clauses with
+          | None -> if (is_sat clauses inter)
+            then Sat(inter)
+            else Unsat
+          | Some lit -> let try_inter = 
+            solver_dpll_rec (simplify lit clauses) (lit::inter) in
+            match try_inter with
+              | Sat _ -> try_inter
+              | Unsat -> solver_dpll_rec (simplify (-lit) clauses) ((-lit)::inter) 
   );;
 
 (** solver_dpll: cnf -> result

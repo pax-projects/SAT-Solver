@@ -1,11 +1,5 @@
 open List
-
-(** Some types helping *)
-type literal = int
-type clause = literal list
-type cnf = clause list
-type interpretation = int list
-type result = Sat of interpretation | Unsat
+open Sat_types
 
 (* Creating a new set to store literals *)
 module LiteralSet = Set.Make(Int);; (* Unsing Int is enough to represent literals with out using any literal module *)
@@ -156,7 +150,12 @@ let rec solver_dpll_rec (clauses: cnf) (inter: interpretation) =
 (** solver_dpll: cnf -> result
   * Solves the problem by using solver_dpll_rec.
 *)
-let solver_dpll (clauses: cnf) = solver_dpll_rec clauses []
+let solver_dpll (clauses: cnf) = 
+  let res = solver_dpll_rec clauses [] in
+  match res with
+  | Unsat -> (Sequent_prover.prove clauses)
+  | _ -> print_model res
+
 
 module Test_expose = struct 
   let get_unitary = get_unitary

@@ -3,6 +3,7 @@
  (libraries str)
  (inline_tests)
  (preprocess (pps ppx_inline_test ppx_assert))
+ (modules_without_implementation sat_types)
  )
 
 (env (dev (flags :standard -warn-error -26-27-32-39)))

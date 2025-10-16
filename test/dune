@@ -1,6 +1,13 @@
 (test
- (name dpll_test)
- (libraries dpll_solver ounit2)
+	(name dpll_test)
+	(libraries dpll_solver ounit2)
+	(flags :standard -warn-error -26-27-32)
 )
 
- (env (dev (flags :standard -warn-error -26-27-32)))
+(test
+	(name sequent_prover_test)
+	(libraries dpll_solver ounit2)
+	(flags :standard -warn-error -26-27-32)
+)
+
+

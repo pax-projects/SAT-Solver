@@ -1,4 +1,3 @@
-
 (**  Les literaux sont représentés par des entiers. 
     Un entier positif n représente le littéral n, 
     un entier négatif -n représente le littéral ¬n.

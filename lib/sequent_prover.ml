@@ -1,34 +1,49 @@
 open Sat_types
 
-exception SequentError of string;;
-
-(* Here a cnf list to discribe sequents is enough because of the main project goal (a SAT SOLVER) *)
-type sequent = cnf list;;
-
-type sequent_tree = 
-| AxiomRule of sequent
-| AndRule of (sequent * sequent * sequent)
-| OrRule of (sequent * sequent)
-;;
-
 (** Utils functions *)
-let cnf_to_formula (expr: cnf) = [[[1; 2]]];;
-
-let apply_axiom_rule (conclusion: sequent): sequent_tree =
-	AxiomRule([[[1; 2]]])
+let is_opposite_unitary (literal: literal) (unitary_cnf: cnf) = 
+	unitary_cnf = [[-literal]]
 ;;
 
-
-let apply_and_rule (conclusion: sequent): sequent_tree = 
-	AxiomRule([[[1; 2]]])
+(** Rules functions *)
+let apply_axiom_rule (conclusion: sequent): sequent_tree = 
+	let rec aux = function
+		| [] -> raise (SequentException ("Axiom rule cannot be applied on: ", conclusion))
+		| [[literal]]::tl ->
+			if List.exists (is_opposite_unitary literal) tl
+			then AxiomRule(conclusion)
+			else aux tl
+		| _::tl -> aux tl
+	in aux conclusion
 ;;
 
 let apply_or_rule (conclusion: sequent): sequent_tree = 
-	AxiomRule([[[1; 2]]])
+	let rec aux = function
+		| [] -> raise (SequentException ("Disjunction rule cannot be applied on: ", conclusion))
+		| [disjunction]::tl -> DisjunctionRule(
+				(List.map (fun elt -> [elt]) disjunction)::tl,
+				conclusion
+			)
+		| _::tl -> aux tl
+	in aux conclusion
+;;
+
+let apply_and_rule (conclusion: sequent): sequent_tree = 
+	let rec aux = function
+		| [] -> raise (SequentException ("Conjunction rule cannot be applied on: ", conclusion))
+		| (disjunction::disjunction'::_ as clause)::tl -> 
+			(* disjunction and disjunction' are int (literals), and clause is an int list *)
+			let left_branch  = [ [disjunction] ] @ tl in
+			let right_branch = [ [disjunction'] ] @ tl in
+			ConjunctionRule (left_branch, right_branch, conclusion)
+		| _::tl -> aux tl
+	in aux conclusion
 ;;
 
 let prove (conclusion: cnf): unit = 
-	(cnf_to_formula conclusion) |> apply_axiom_rule |> fun _ -> ()
+	[conclusion] |> apply_axiom_rule |> fun _ -> ()
 ;;
 
-prove [[-1; 1]; [2; 3; 0]];;
+module Test_expose = struct
+	let apply_axiom_rule = apply_axiom_rule
+end;;

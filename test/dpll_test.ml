@@ -1,6 +1,7 @@
 open OUnit2
 open Dpll_solver.Dpll
 
+(* Helpers *)
 let assert_true = assert_equal true;;
 (* let assert_false = assert_equal false;; *)
 let assert_equal_option = (fun a b -> assert_true (Option.equal (=) a b));;
@@ -10,7 +11,7 @@ let assert_equal_cnf l l' =
 	assert_true (ClauseSet.equal fst_set snd_set)
 ;;
 
-
+(* ----------------- Is Pure Tests ----------------- *)
 let test_get_unitary = "test suite for is_pure" >::: [
 	"empty" >:: (fun _ -> assert_true (Option.is_none(Test_expose.get_unitary [])));
 	"mono-clause_true" >:: (fun _ -> assert_equal_option (Some(2)) (Test_expose.get_unitary [[2]]));
@@ -18,6 +19,7 @@ let test_get_unitary = "test suite for is_pure" >::: [
 	"multi-clause" >:: (fun _ -> assert_equal_option (Some 3) (Test_expose.get_unitary [[1; -2]; [-1; 2; 3]; [3]; [-3]]));
 ];;
 
+(* ----------------- Get pure Tests ----------------- *)
 let test_get_pure = "test suite for get_pure" >::: [
 	"[empty] expected: None" >:: (fun _ ->
 		assert_true (Option.is_none (Test_expose.get_pure []))
@@ -36,6 +38,7 @@ let test_get_pure = "test suite for get_pure" >::: [
 	);
 ];;	
 
+(* ----------------- Simplify function Tests ----------------- *)
 let test_simplify = "test suite for simplify" >::: [
 	"[empty CNF] expected: []" >:: (fun _ -> 
 		assert_equal_cnf [] (Test_expose.simplify 1 [])
@@ -57,11 +60,11 @@ let test_simplify = "test suite for simplify" >::: [
 	);
 ];;
 
-
-let test_suite = "DPLL internal tests" >::: [
+(* ----------------- Master Suite ----------------- *)
+let dpll_test_suite = "DPLL internal tests" >::: [
 	test_get_unitary;
 	test_get_pure;
 	test_simplify;
 ];;
 
-let _ = run_test_tt_main test_suite;;
+let _ = run_test_tt_main dpll_test_suite;;

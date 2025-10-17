@@ -20,6 +20,7 @@ let apply_axiom_rule (conclusion: sequent): sequent_tree =
 let apply_or_rule (conclusion: sequent): sequent_tree = 
 	let rec aux = function
 		| [] -> raise (SequentException ("Disjunction rule cannot be applied on: ", conclusion))
+		| [[literal]]::tl -> aux tl
 		| [disjunction]::tl -> DisjunctionRule(
 				(List.map (fun elt -> [elt]) disjunction)::tl,
 				conclusion
@@ -46,4 +47,6 @@ let prove (conclusion: cnf): unit =
 
 module Test_expose = struct
 	let apply_axiom_rule = apply_axiom_rule
+	let apply_or_rule = apply_or_rule
+	let apply_and_rule = apply_and_rule
 end;;

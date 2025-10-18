@@ -153,7 +153,7 @@ let rec solver_dpll_rec (clauses: cnf) (inter: interpretation) =
 let solver_dpll (clauses: cnf) = 
   let res = solver_dpll_rec clauses [] in
   match res with
-  | Unsat -> (Sequent_prover.prove clauses)
+  | Unsat -> (Sequent_prover.prove [[1; 2; -1]; [-4; -5; 4]; [-2; -7; 4]])
   | _ -> print_model res
 
 

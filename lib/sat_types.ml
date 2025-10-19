@@ -20,10 +20,10 @@ type sequent_tree =
 	| AndNode of (sequent_tree * sequent_tree * sequent)
 ;;
 
-type form_tree =
+type prop_tree =
 	| Literal of int
-	| And of form_tree * form_tree
-	| Or of form_tree * form_tree
+	| AndNode of form_tree * form_tree
+	| OrNode of form_tree * form_tree
 ;;
 
 (* Sequent prover types *)

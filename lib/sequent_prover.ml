@@ -27,127 +27,68 @@ let string_of_sequent (seq : sequent) =
 	in "{" ^ s ^ "}"
 ;;
 
-let pretty_printing (tree : sequent_tree) : string =
-  let rec aux (tree : sequent_tree) (offset : int) : string list =
-    match tree with
-    | AxiomNode c ->
-        let str = string_of_sequent c in
-        let len = String.length str in
-        [
-          (String.make offset ' ') ^ (String.make len '-') ^ "(ax)";
-          (String.make (2*offset) ' ') ^ str;
-        ]
-
-    | OrNode (h, c) ->
-        let str = string_of_sequent c in
-        let len = String.length str in
-        let h_lines = aux h offset in
-        h_lines
-        @ [
-            (String.make offset ' ') ^ (String.make len '-') ^ "(\\/)";
-            (String.make (2*offset) ' ') ^ str;
-          ]
-
-    | AndNode (h1, h2, c) ->
-        let left_lines = aux h1 offset in
-        let right_lines = aux h2 (offset + 4) in
-
-        (* égalise le nombre de lignes *)
-        let max_height = max (List.length left_lines) (List.length right_lines) in
-        let pad l =
-          let diff = max_height - List.length l in
-          l @ List.init diff (fun _ -> "")
-        in
-        let left_lines = pad left_lines in
-        let right_lines = pad right_lines in
-
-        (* concatène ligne par ligne *)
-        let combined_lines =
-          List.map2
-            (fun l r -> l ^ "    " ^ r)
-            left_lines right_lines
-        in
-
-        let str = string_of_sequent c in
-        let len = String.length str in
-        combined_lines
-        @ [
-            (String.make offset ' ') ^ (String.make (len+10) '-') ^ "(/\\)";
-            (String.make (offset + 5) ' ') ^ str;
-          ]
-  in
-
-  String.concat "\n" (aux tree 0)
+let are_opposite (l: literal) (l': literal) = l = -l'
 ;;
 
-
-let rec clause_to_neg_clause = function
-	| [] -> []
-	| hd::tl -> (-hd)::(clause_to_neg_clause tl)
+let rec in_tree (l: literal) (tree: prop_tree): bool = match tree with
+	| Literal l' -> l = l'
+	| OrNode left, right -> (in_tree l left) || (in_tree l right)
+	| AndNode left, right -> (in_tree l left) || (in_tree l right)
 ;;
 
-let rec cnf_to_neg_cnf = function
-	| [] -> []
-	| hd::tl -> (clause_to_neg_clause hd)::(cnf_to_neg_cnf tl)
+(* ----------------- Rules Functions ----------------- *)
+(* WARNING: These functions, for simplification reasons, are only working on CNF structures. *)
+let rec apply_and_rule (left: prop_tree) (right: prop_tree): sequent_tree = match (left, right) with 
+	| Literal _, _ -> failwith "The proposition cannot be proved."
+	| _, Literal _ -> failwith "The proposition cannot be proved."
+	| OrNode left right, OrNode left' right' -> 
+		AndRule (
+			prove (OrNode (left, right)),
+			prove (OrNode (left', right'))
+		)
+	| OrNode left right, AndNode left' right' -> 
+		AndRule (
+			prove (OrNode (left, right)),
+			prove (AndNode (left', right'))
+		)
+	| AndNode left right, OrNode left' right' -> 
+		AndRule (
+			prove (AndNode (left, right)),
+			prove (OrNode (left', right'))
+		)
+	| AndNode left right, AndNode left' right' ->
+		AndRule (
+			prove (AndNode (left, right)),
+			prove (AndNode (left', right'))
+		)
 ;;
 
-let is_opposite_unitary (literal: literal) (unitary_cnf: cnf) = 
-	unitary_cnf = [[-literal]]
+let rec apply_or_rule (left: prop_tree) (right: prop_tree): sequent_tree = match (left, right) with 
+	| Literal l, Literal l' -> if are_opposite l l' then AxiomRule([left; right])
+	| Literal l, OrNode left right | OrNode left right, Literal l -> 
+		if in_tree (-l) (OrNode(left, right)) 
+		then OrRule([l], prove (OrNode(left, right)))
+		else failwith "The proposition cannot be proved."
 ;;
 
-(** Rules functions *)
-let apply_axiom_rule (conclusion: sequent): sequent = 
-	let rec aux = function
-		| [] -> raise (SequentException ("Axiom rule cannot be applied on: ", conclusion))
-		| [[literal]]::tl ->
-			if List.exists (is_opposite_unitary literal) tl
-			then conclusion
-			else aux tl
-		| _::tl -> aux tl
-	in aux conclusion
+(* ----------------- Prove Function ----------------- *)
+(* WARNING: This function is only working on CNF structures. *)
+let rec prove (tree: prop_tree): sequent_tree = match tree with
+	| Literal l -> failwith "Never reached branch."
+	| AndNode left right -> apply_and_rule left right
+	| OrNode left right -> apply_or_rule left right
+
+(* ----------------- CNF to Propositional Tree ----------------- *)
+let rec disjunction_to_tree (clause: clause): prop_tree = match clause with
+	| [] -> failwith "Error in cnf_to_tree"
+	| hd::[] -> Literal hd
+	| hd::tl -> OrNode (Literal hd, disjunction_to_tree tl)
 ;;
 
-let apply_or_rule (conclusion: sequent): sequent * sequent = 
-	let rec aux = function
-		| [] -> raise (SequentException ("Disjunction rule cannot be applied on: ", conclusion))
-		| [[literal]]::tl -> aux tl
-		| [disjunction]::tl -> ((List.map (fun elt -> [[elt]]) (disjunction)) @ tl, conclusion)
-		| _::tl -> aux tl
-	in aux conclusion
-;;
-
-let apply_and_rule (conclusion: sequent): sequent * sequent * sequent = 
-	let rec aux = function
-		| [] -> raise (SequentException ("Conjunction rule cannot be applied on: ", conclusion))
-		| (disjunction::disjunction'::_)::tl -> 
-			(* disjunction and disjunction' are int (literals), and clause is an int list *)
-			let left_branch  = [[disjunction']] @ tl in
-			let right_branch = [[disjunction]] @ tl in
-			(left_branch, right_branch, conclusion)
-		| _::tl -> aux tl
-	in aux conclusion
-;;
-
-let prove (formula: cnf): unit = 
-	let rec aux (seq: sequent) = 
-		Logger.log Logger.INFO (string_of_sequent seq);
-		match seq with
-		| [] -> raise (SequentException ("Could not apply more of this rule", seq))
-		| hd::tl ->	match try_apply_rules [hd] with
-			| Axiom(c) -> (Logger.log Logger.SUCCESS "Axiom"); AxiomNode(c)
-			| OrRule(h, c) -> (Logger.log Logger.SUCCESS "OR"); OrNode(aux h, c)
-			| AndRule(h, h', c) -> try 
-				(Logger.log Logger.SUCCESS ("AND-1::" ^ (string_of_sequent seq))); AndNode(aux h, aux tl, c)
-				with SequentException _ -> (Logger.log Logger.SUCCESS "AND-2"); AndNode(aux h, aux h', c)
-
-			and try_apply_rules seq = 
-				try Axiom(apply_axiom_rule seq) with SequentException (_, seq_error) ->
-				try let (h, c) = (apply_or_rule seq) in OrRule(h, c) with SequentException _ ->
-				try let (h, h', c) = (apply_and_rule seq) in AndRule(h, h', c) with SequentException _ -> 
-				failwith (
-					"Sequent couldn't be proved because of an internal error | " ^ (string_of_sequent seq_error)
-				)
-	in [formula] |> aux |> pretty_printing |> print_endline
+let rec cnf_to_tree (clauses: cnf): prop_tree = match clauses with
+	| [] -> failwith "Error in cnf_to_tree"
+	| hd::[] -> disjunction_to_tree hd
+	| hd::tl -> AndNode (disjunction_to_tree hd, cnf_to_tree tl)
 ;;
 
 module Test_expose = struct

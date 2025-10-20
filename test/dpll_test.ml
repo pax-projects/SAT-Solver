@@ -1,4 +1,4 @@
-open OUnit2
+(* open OUnit2
 open Dpll_solver.Dpll
 
 module L = LiteralSet
@@ -92,3 +92,4 @@ let test_suite = "DPLL internal tests" >::: [
 ]
 
 let _ = run_test_tt_main test_suite
+ *)

@@ -1,161 +1,93 @@
 open List
 
-(** Some types helping *)
-
-(* Creating a new set to store literals *)
-module LiteralSet = Set.Make(Int);; (* Unsing Int is enough to represent literals with out using any literal module *)
-module ClauseSet = Set.Make(LiteralSet);;
-
 type literal = int
 type clause = literal list
 type cnf = clause list
-type interpretation = LiteralSet.t
+type interpretation = int list
 type result = Sat of interpretation | Unsat
 
+(** Ce fichier contient les fonctions à compléter. *)
 
-(** Utils functions *)
-let cnf_to_clause_set (clauses: int list list): ClauseSet.t = ClauseSet.of_list (map (LiteralSet.of_list) clauses);;
+(** Fonctions utilitaires. *)
 
-(** val print_model : result -> unit
-  *
-  * Displays solver result
-*)
-let print_model: result -> unit = function
+(** Avec ce choix de type cette fonction est l'identité. *)
+let cnf_of_int_list_list (l: int list list) : cnf = l
+
+(** print_modele : result -> unit afficher le résultat *)
+let print_result: result -> unit = function
   | Unsat   -> print_string "UNSAT\n"
-  | Sat model -> let model' = LiteralSet.elements model 
-    in let model_sorted = sort (fun i j -> (abs i) - (abs j)) model' 
-      in List.iter (fun i -> (print_int i; print_string " ")) model_sorted;
-      print_string "0\n"
+  | Sat modele -> print_string "SAT\n";
+     let modele_trie = sort (fun i j -> (abs i) - (abs j)) modele in
+     List.iter (fun i -> print_int i; print_string " ") modele_trie;
+     print_string "0\n"
+
+(** simplifie : literal -> cnf -> cnf 
+   applique la simplification de l'ensemble des clauses en mettant
+   le littéral l à vrai *)
+
+let rec remove_literal_from_clause l clause = match clause with
+  | [] -> []
+  | hd::tl -> if hd = l then remove_literal_from_clause l tl else hd::remove_literal_from_clause l tl;;
+
+let simplifie l clauses = 
+  List.filter (fun clause -> not (List.mem l clause)) clauses
+  |> List.map (fun clause -> remove_literal_from_clause (-l) clause)
+(** Solveur dpll récursif *)
+
+(** pur : cnf -> literal option
+    - si `clauses' contient au moins un littéral pur, retourne
+      ce littéral ;
+    - sinon renvoie None *)
+let rec is_pure l clauses = match clauses with
+  | [] -> false
+  | hd::tl -> if List.mem (-l) hd then false else is_pure l tl
 ;;
 
-(** val simplify : literal -> cnf -> cnf 
-  *
-  * Simplify all clauses setting l to true and -l to false.
-  * In other words, it delete every CNF clause containing l and removing -l from every CNF clause.
-
-  * [Complexity]:
-  * - TODO
-*)
-let simplify (literals: LiteralSet.t) (clauses: ClauseSet.t) =
-  let neg_literals = LiteralSet.map (fun elt -> -elt) literals in
-    (ClauseSet.filter (fun clause -> LiteralSet.disjoint literals clause) clauses)
-    |> ClauseSet.map (fun clause -> LiteralSet.diff clause neg_literals)
+let rec pur clauses = match clauses with
+  | [] -> None
+  | hd::tl -> let rec aux = function
+      | [] -> pur tl
+      | hd'::tl' -> if is_pure hd' clauses then Some(hd') else aux tl'
+    in aux hd;;
 ;;
 
-(** flatten_clauses_to_set clauses: ClauseSet.t -> LiteralSet.t
-  * Takes an input of type literal list list
-  * and returns a set of the flatten list.
-
-  * [Complexity]: O(N) with N the total number of literals
-*)
-let flatten_clauses_to_set (clauses: ClauseSet.t): LiteralSet.t = 
-  ClauseSet.fold
-    (fun clause acc -> LiteralSet.union clause acc)
-    clauses
-    LiteralSet.empty
+(** unitaire : cnf -> literal option
+    - si `clauses' contient au moins une clause unitaire, retourne
+      le littéral de cette clause unitaire ;
+    - sinon renvoie None *)
+let is_singleton elt = List.length elt = 1;;
+let rec unitaire = function
+  | [] -> None
+  | [x]::tl -> Some x
+  | _::tl -> unitaire tl
 ;;
 
-(** Dpll solver *)
+let is_clause_empty clauses = List.exists (fun c -> c = []) clauses
 
-(** get_pure : ClauseSet.t -> literal option
-  * Returns Some(l) if l is the first pure literal in the CNF;
-  * Returns None if there is no pure literal in the CNF.
+let rec get_random_literal clauses = match clauses with
+  | [] -> None
+  | hd::tl ->
+    match hd with
+    | [] -> get_random_literal tl
+    | x::_ -> Some x
 
-  * [Complexity]:
-  * - LiteralSet.filter   -> O(N * log(N))
-  * - LiteralSet.map      -> O(N * log(N))
-  * - LiteralSet.elements -> O(N)
-
-  * - LiteralSet.union    -> O(N + M) ~ O(max(N, M))
-  * - LiteralSet.diff     -> O(N + M) ~ O(max(N, M)) // Same as union
-  * - LiteralSet.inter    -> O(N + M) ~ O(max(N, M)) // Also same as union
-
-  * The maximum complexity in the worst cases should be about :
-  * O(3 * [N * log(N)] + 4 * N) ~ O(N*log(N))
-*)
-let get_pures (clauses: ClauseSet.t): LiteralSet.t = 
-  (* Separates neg from pos by using sets *)
-  let aux (flatten_clauses: LiteralSet.t) = 
-    let pos = LiteralSet.filter (fun lit -> lit >= 0) flatten_clauses in
-    let neg = flatten_clauses
-      |> LiteralSet.filter (fun lit -> lit <= 0) 
-      |> LiteralSet.map abs
-    in LiteralSet.diff (LiteralSet.union pos neg) (LiteralSet.inter pos neg)
-  in flatten_clauses_to_set clauses |> aux 
+let rec solveur_dpll_rec clauses interpretation =
+  if clauses = [] then Sat interpretation
+  else if is_clause_empty clauses then Unsat
+  else
+    match unitaire clauses with
+    | Some l -> solveur_dpll_rec (simplifie l clauses) (l::interpretation)
+    | None ->
+      match pur clauses with
+      | Some l -> solveur_dpll_rec (simplifie l clauses) (l::interpretation)
+      | None ->
+        match get_random_literal clauses with
+        | None -> Unsat (* plus là par sécurité, mais on a déjà traité [] plus haut *)
+        | Some l ->
+          match solveur_dpll_rec (simplifie l clauses) (l::interpretation) with
+          | Sat _ as s -> s
+          | Unsat -> solveur_dpll_rec (simplifie (-l) clauses) ((-l)::interpretation)
 ;;
 
-(** get_unitary : ClauseSet.t -> literal option
-  * Returns Some(l) if l is the literal in the first clause containing only one literal;
-  * Returns None else.
-
-  * [Complexity]:
-  * - TODO
-*)
-let get_unitaries (clauses: ClauseSet.t): LiteralSet.t =
-  (ClauseSet.filter (fun elt -> LiteralSet.cardinal elt = 1)) clauses
-  |> flatten_clauses_to_set
-;;
-
-(** is_sat : ClauseSet.t -> interpretation -> bool
-  * Checks the correctness of an interpretation simplifying the CNF by
-  * each interpretaition literal.
-
-  * [Complexity]:
-  * - TODO
-*)
-let is_sat (clauses: ClauseSet.t) (inter: interpretation) = 
-  ClauseSet.cardinal (simplify inter clauses) = 0
-;;
-
-let get_first_available_literal (clauses: ClauseSet.t): literal option = 
-  let clause = ClauseSet.choose_opt clauses in
-    match clause with 
-    | None -> None
-    | Some clause -> LiteralSet.choose_opt clause
-;;
-
-(* ----------------- Recursive Solver Functions ----------------- *)
-let reduce_unitaries (clauses: ClauseSet.t) = 
-  let unitaries = get_unitaries clauses in
-  simplify unitaries clauses
-;;
-
-let reduce_pures (clauses: ClauseSet.t) =
-  let pures = get_pures clauses in
-  simplify pures clauses
-;;
-
-(** solver_dpll_rec : ClauseSet.t -> interpretation -> result
-  * Executes a backtracking algorithm using all the above functions.
-
-  * [Complexity]:
-  * - TODO
-*)
-let rec solver_dpll_rec (clauses: ClauseSet.t) (inter: interpretation) =
-  if is_sat clauses inter then
-    Sat(inter)
-  else (
-    clauses
-    |> reduce_unitaries
-    |> reduce_pures
-    |> fun clauses -> match (get_first_available_literal clauses) with
-        | None -> if (is_sat clauses inter)
-          then Sat(inter)
-          else Unsat
-        | Some lit -> 
-          let try_inter = solver_dpll_rec (simplify (LiteralSet.singleton lit) clauses) (LiteralSet.add lit inter)
-          in match try_inter with
-            | Sat _ -> try_inter
-            | Unsat -> solver_dpll_rec (simplify (LiteralSet.singleton (-lit)) clauses) (LiteralSet.add (-lit) inter) 
-  );;
-
-(** solver_dpll: ClauseSet.t -> result
-  * Solves the problem by using solver_dpll_rec.
-*)
-let solver_dpll (clauses: ClauseSet.t) = solver_dpll_rec clauses LiteralSet.empty
-
-module Test_expose = struct 
-  let get_unitaries = get_unitaries
-  let get_pures = get_pures
-  let simplify = simplify
-end;;
+(* let dpll_solver clauses = solveur_dpll_rec clauses [];; *)
+let dpll_solver clauses = solveur_dpll_rec (Sat_types.Solver_state.create clauses).clauses [];;

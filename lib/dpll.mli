@@ -3,14 +3,17 @@
     Un entier positif n représente le littéral n, 
     un entier négatif -n représente le littéral ¬n.
   *)
+module LiteralSet: Set.S with type elt = Int.t;;
+
 type literal = int
-type clause = literal list
+type clause = LiteralSet.t
 type cnf = clause list
-type interpretation = int list
+type interpretation = LiteralSet.t
 type result = Sat of interpretation | Unsat
 
+
 (** Cette fonction prend en argument une liste d'entiers et renvoie une cnf *)
-val cnf_of_int_list_list : int list list -> cnf
+val prepare_cnf : int list list -> cnf
 
 (** Cette fonction prend un argument un objet de type resulat et l'affiche à l'écran. *)
 val print_result : result -> unit

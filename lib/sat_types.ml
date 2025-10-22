@@ -1,10 +1,10 @@
-type literal = int
-type clause = literal list
-type cnf = clause list
-type interpretation = int list
-type result = Sat of interpretation | Unsat
-
 module LiteralSet = Set.Make(Int)
+
+type literal = int
+type clause = LiteralSet.t
+type cnf = clause list
+type interpretation = LiteralSet.t
+type result = Sat of interpretation | Unsat
 
 (* TODO: Keep it private *)
 module Node = struct 
@@ -13,7 +13,7 @@ module Node = struct
 		polarity_score: float;
 	}
 
-	let create (l: int) (ps: float) = {literal = l; polarity_score = ps};;
+	let create (l: literal) (ps: float) = {literal = l; polarity_score = ps};;
 
 	let compare (a: t) (b: t) = 
 		if a.literal = b.literal (* Avoid having two times the same literal *)
@@ -42,12 +42,11 @@ module Solver_state = struct
 	(* ----------------- Utils functions ----------------- *)
 	let append_literals_to_hashtbl (hash_tbl: lit_table_type) (clauses: cnf): unit =
 		List.iter (
-			fun clause -> List.iter (
+			fun clause -> (LiteralSet.iter (
 				fun literal -> match Hashtbl.find_opt hash_tbl literal with
 				| None -> Hashtbl.add hash_tbl literal 1
 				| Some occurrences -> Hashtbl.replace hash_tbl literal (occurrences+1)
-			)
-			clause
+			) clause)
 		) clauses
 	;;
 
@@ -134,22 +133,42 @@ module Solver_state = struct
 		| Some _ -> true
 	;;
 
-	let remove_literal (state: t) (l: literal) =
+	let remove_literal (state: t) (literals: LiteralSet.t): unit =
 		(* Logger.log Logger.WARNING (Printf.sprintf "Simplifying by %d" l);  *)
-		Hashtbl.remove state.lit_table l;
-		state.literals_polarisation <- (remove_literal_of_node_set (state.literals_polarisation) (l))
+		LiteralSet.iter (fun l ->
+			Hashtbl.remove state.lit_table l;
+			state.literals_polarisation <- (remove_literal_of_node_set (state.literals_polarisation) (l))
+		) literals
 	;;
 
+	let get_max_float_polarity (state: t): LiteralSet.t =
+		NodeSet.fold (fun node acc ->
+			if node.polarity_score = Float.max_float
+			then LiteralSet.add node.literal acc
+			else acc
+		)
+		state.literals_polarisation
+		LiteralSet.empty
+
+	;;
+
+
 	(* ----------------- Saving functions ----------------- *)
-	let make_save (state: t) (l: literal): save_type =
+	let make_save (state: t) (literals: LiteralSet.t): save_type =
 		(* dump_memory state; *)
 		let entry_for k =
 			(* Logger.log Logger.WARNING (Printf.sprintf "Making save on %d" k); *)
 			let old_count = Hashtbl.find state.lit_table k in (* find and not find_opt because no bugs are supposed to happend except if the Hashtbl is empty*)
 			let old_node = find_node_by_literal state.literals_polarisation k in
 			(k, old_count, old_node)
-		in
-		if (literal_exists state (-l)) then [entry_for l; entry_for (-l)] else [entry_for l]
+		in LiteralSet.elements literals 
+		|> List.map (
+			fun l -> 
+				if (literal_exists state (-l)) 
+				then [entry_for l; entry_for (-l)] 
+				else [entry_for l]
+			)
+		|> List.flatten
 	;;
 
 	let restore_save (state: t) (save: save_type): unit =
@@ -161,7 +180,7 @@ module Solver_state = struct
 		)
 		save;
 
-		List.iter (fun (key, _, old_node) ->
+		List.iter (fun (key, _, _) ->
 			state.literals_polarisation <- (add_literal_to_node_set state.literals_polarisation state.lit_table key)
 		)
 		save;

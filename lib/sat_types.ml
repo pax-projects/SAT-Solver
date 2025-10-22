@@ -24,13 +24,12 @@ module Node = struct
 			then res
 			else Int.compare a.literal b.literal
 	;;
-	
 end;;
 
 module Solver_state = struct
 	module NodeSet = Set.Make(Node);;
 
-	type lit_table_type = (int, int) Hashtbl.t
+	type lit_table_type = (literal, int) Hashtbl.t
 
 	type save_type = (literal * int * Node.t) list
 
@@ -59,10 +58,6 @@ module Solver_state = struct
 		| _, None -> Float.max_float
 		| Some l_occurences, Some l_occurences' -> (float_of_int l_occurences) /. (float_of_int l_occurences')
 	;;
-	(* let l_occurences = float_of_int l_occurences in 
-	let l'_occurences = float_of_int l'_occurences in
-	(Float.max l_occurences l'_occurences) /. (Float.min l_occurences l'_occurences)
-	*)
 
 	let keys_to_set_with_polarisation (hash_tbl: lit_table_type): NodeSet.t =
 		Hashtbl.fold
@@ -114,7 +109,10 @@ module Solver_state = struct
 
 		NodeSet.iter (fun node ->
 			Printf.sprintf "{literal: %d; score: %s }" node.literal (if node.polarity_score = Float.max_float then "+inf" else string_of_float node.polarity_score) |> Logger.log Logger.INFO
-		) state.literals_polarisation
+		) state.literals_polarisation;
+
+		Logger.log Logger.WARNING "----------------------------------------------------";
+		Logger.log Logger.WARNING "----------------------------------------------------"
 	;;
 
 	(* TODO: Maybe instead of 64, calculate an approximate table size with [max (length clause) * (length clauses)] * 2 *)

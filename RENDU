@@ -10,18 +10,19 @@ Date limite: le vendredi 25 octobre 2024 à 19:00
 
 Identité
 --------
-Nombre de binôme: **à remplir**
-Nom, prénom 1: **à remplir**
-Nom, prénom 2: **à remplir**
+Nombre de binôme: 22
+Nom, prénom 1: ABRILE, Maxence
+Nom, prénom 2: RICHEL, Natale
 
 
 Questions sur votre code
 ------------------------
-0. Avez-vous testé que `make dpll` s'exécute sans erreurs ou warnings,
-   et que ensuite `./dpll sudoku-4x4.cnf` donne la réponse attendue (voir
+0. Avez-vous testé que `make` s'exécute sans erreurs ou warnings,
+   et que ensuite `make solve FILE=examples/SAT/sudoku-4x4.cnf` donne la réponse attendue (voir
    fichier README) ?
 
-**à remplir**
+La commande `make` s'éxecute sans encombre.
+La commande `make solve FILE=examples/SAT/sudoku-4x4.cnf` donne en effet une bonne réponse.
 
 ---
 
@@ -32,7 +33,11 @@ Questions sur votre code
    - Si non, expliquez en quelques phrases en français comment
      fonctionne votre implémentation de `simplifie`.
 
-**à remplir**
+Nous n'avons pas utilisé filter_map. Notre fonction `simplify` utilise
+pour clause des ensemble ainsi qu'un autre ensemble de literaux à simplifier.
+- Celle-ci supprime toutes les clauses dont il existe un literal en commun entre la clause
+et l'ensemble à simplifier. (simplification de tous les l)
+- Puis, elle utilise une fonction auxiliaire permettant de supprimer chacun de ces litéraux des clauses. (simplification de tous les -l)
 
 ---
 
@@ -45,7 +50,21 @@ Questions sur votre code
    comment ces fonctions auxiliaires sont utilisées dans votre
    implémentation de la fonction `unitaire`.
 
-**à remplir**
+Dans l’implémentation de la fonction `unitaire`, nous avons utilisé plusieurs fonctions auxiliaires issues de la bibliothèque standard d’OCaml ainsi que du module LiteralSet :
+
+`List.filter` : cette fonction permet de parcourir la liste des clauses et de ne conserver que celles dont la taille est égale à 1, c’est-à-dire les clauses unitaires.
+-> Elle est utilisée ici avec un prédicat basé sur `LiteralSet.cardinal`.
+
+`LiteralSet.cardinal` : cette fonction retourne le nombre d’éléments dans un ensemble de littéraux.
+-> Elle permet d’identifier les clauses qui ne contiennent qu’un seul littéral.
+
+`List.fold_left` : elle sert à fusionner toutes les clauses unitaires trouvées en un seul ensemble global, en appliquant une fonction de combinaison entre chaque élément.
+
+`LiteralSet.union` : cette fonction effectue l’union de deux ensembles de littéraux.
+-> Elle est utilisée comme fonction d’accumulation dans le `fold_left`.
+
+`LiteralSet.is_empty` : elle vérifie si l’ensemble obtenu est vide.
+-> Si c’est le cas, la fonction renvoie `None`, sinon elle renvoie `Some res`.
 
 ---
 
@@ -54,7 +73,45 @@ Questions sur votre code
    quelques phrases en français comment ces fonctions auxiliaires sont
    utilisées dans votre implémentation de la fonction `pur`.
 
-**à remplir**
+Dans l’implémentation de la fonction pur, deux fonctions auxiliaires principales sont utilisées :
+
+`Solver_state.get_max_float_polarity`, issue du module interne `Solver_state`,
+et `LiteralSet.is_empty`, provenant du module Set.
+
+1. Le rôle du module `Solver_state`
+
+Le module `Solver_state` gère l’état interne du solveur DPLL.
+Il maintient plusieurs structures essentielles :
+- une table de hachage associant chaque littéral à son nombre d’occurrences dans la formule (positive ou négative) ;
+- un ensemble de nœuds (`NodeSet`), où chaque nœud contient un littéral et un score de polarité ;
+- et enfin, la CNF d’origine pour référence.
+
+Chaque score de polarité correspond au rapport entre les occurrences d’un littéral et celles de sa négation.
+Ce rapport est calculé par la fonction auxiliaire `calculate_polarity_score`, selon la formule :
+
+score(l)=occurrences(l)/occurrences(−l)
+
+Ainsi :
+- si les deux formes d’un littéral apparaissent dans la formule, le score est un ratio réel ;
+- si seule la forme positive de l apparaît (et jamais -l), le score vaut `Float.max_float` ;
+- si seule la forme négative apparaît, le score vaut 0.0.
+
+Un littéral pur est donc un littéral qui n’existe que sous une seule polarité (positive ou négative), sans sa négation dans la CNF.
+
+2. Le rôle de `Solver_state.get_max_float_polarity`
+
+Cette fonction parcourt tous les nœuds du `NodeSet` et sélectionne ceux dont le polarity_score vaut `Float.max_float`.
+Ce choix n’est pas anodin :
+
+`Float.max_float` désigne ici les littéraux purement positifs, c’est-à-dire ceux qui apparaissent dans les clauses sans leur forme négative.
+Ces littéraux peuvent être immédiatement assignés à true dans le solveur, car ils ne peuvent jamais être contredits par une autre clause.
+La fonction retourne donc un ensemble de littéraux purs (`LiteralSet.t`), qui correspond à l’ensemble des candidats au règle du littéral pur dans l’algorithme DPLL.
+
+3. Le rôle de `LiteralSet.is_empty`
+
+Après la détection, pur vérifie si l’ensemble des littéraux purs est vide :
+- s’il est vide, il n’y a aucun littéral pur, et la fonction retourne None ;
+- sinon, elle retourne Some res, où res contient les littéraux trouvés.
 
 ---
 
@@ -67,12 +124,19 @@ Questions sur votre code
 ---
 5. Quelle a été votre méthodologie de test ?
 
-**à remplir**
+Nous avons employé la méthodologie de tests unitaire permettant de tester chaque fonction indépendement les unes des autres.
+De plus, à chaque erreur algorithmique rencontrée, nous avons ajouté un test pour être certain que ce bug ne surviennent plus.
 
 ---
 6. Avez-vous d'autres remarques sur votre rendu ? (question optionnelle)
 
-**à remplir**
+Nous aimerions que vous portiez une attention tout particulière au module du `Solver_state` car son implémentation a été des plus délicates et qu'il constitue de une grande majorité de notre puissance d'optiisation (heuristique + préparation du jeu de données utilisé par le solveur).
+
+De plus notre projet dispose de plus de trois sortes de techniques d'optimisations :
+- Utilisation d'une table de hachage pour le stockage du nombre d'occurences des variables
+- Utilisation d'un set afin de priorisé de manière heuristique les litéraux à traiter
+- Utilisation des sets pour gérer les clauses
+- A venir
 
 ---
 

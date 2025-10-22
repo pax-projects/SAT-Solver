@@ -1,4 +1,13 @@
-type error_level = ERROR | WARNING | INFO | SUCCESS | OK;;
+type error_level = 
+| ERROR
+| WARNING
+| INFO
+| SUCCESS
+| OK
+| VIOLET
+| GRAY
+| BLUE
+;;
 
 module Color = struct
 	let reset = "\027[0m"
@@ -18,6 +27,9 @@ let string_of_error_level: error_level -> string = function
 | ERROR -> (Color.red "ERROR")
 | WARNING -> (Color.yellow "WARNING")
 | INFO -> (Color.cyan "INFO")
+| VIOLET -> (Color.magenta "INFO")
+| GRAY -> (Color.gray "INFO")
+| BLUE -> (Color.blue "INFO")
 | SUCCESS | OK -> (Color.green "SUCCESS");;
 
 let log level msg: unit = 

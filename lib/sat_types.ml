@@ -64,10 +64,12 @@ module Solver_state = struct
 	module NodeSet = Set.Make(Node);;
 
 	(** Internal type: mapping literals to their occurrence count. *)
-	type lit_table_type = (literal, int) Hashtbl.t
+	type lit_table_type = (literal, int) Hashtbl.t;;
 
 	(** A "save" is a list of triples (literal, count, node) for backtracking. *)
-	type save_type = (literal * int * Node.t) list
+	type save_type = (literal * int * Node.t) list;;
+
+	type save_stack_type = save_type Stack.t;;
 
 	(** Mutable solver state. *)
 	type t = {
@@ -220,8 +222,8 @@ module Solver_state = struct
 		@return unit
 	*)
 	let remove_literal (state: t) (literals: LiteralSet.t): unit =
-		(* Logger.log Logger.WARNING (Printf.sprintf "Simplifying by %d" l);  *)
 		LiteralSet.iter (fun l ->
+			(* Logger.log Logger.WARNING (Printf.sprintf "Simplifying by %d" l); *)
 			Hashtbl.remove state.lit_table l;
 			state.literals_polarisation <- (remove_literal_of_node_set (state.literals_polarisation) (l))
 		) literals
@@ -242,7 +244,6 @@ module Solver_state = struct
 		)
 		state.literals_polarisation
 		LiteralSet.empty
-
 	;;
 
 	(* ----------------- Saving functions ----------------- *)

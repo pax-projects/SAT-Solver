@@ -46,62 +46,99 @@ let test_get_unitary = "test suite for get_unitaries" >::: [
         assert_true (LiteralSet.equal s (LiteralSet.of_list [3; -3]))
       )
 ]
-(*
-let test_get_pure = "test suite for get_pures" >::: [
-  "empty" >:: (fun _ ->
-    assert_true (LiteralSet.is_empty (Test_expose.get_pures []))
-  );
-  "mono-clause_some" >:: (fun _ ->
-    let cs = clause_set_of_lists [[2; -2; 1]] in
-    assert_true (LiteralSet.equal (Test_expose.get_pures cs) (LiteralSet.singleton 1))
-  );
-  "mono-clause_none" >:: (fun _ ->
-    let cs = clause_set_of_lists [[1; -1]] in
-    assert_true (LiteralSet.is_empty (Test_expose.get_pures cs))
-  );
-  "multi-clause_some" >:: (fun _ ->
-    let cs = clause_set_of_lists [[1; -1]; [-1; 3]] in
-    assert_true (LiteralSet.equal (Test_expose.get_pures cs) (LiteralSet.singleton 3))
-  );
-  "multi-clause_none" >:: (fun _ ->
-    let cs = clause_set_of_lists [[1; -2]; [-1; 2]] in
-    assert_true (LiteralSet.is_empty (Test_expose.get_pures cs))
-  );
-]
+
+let test_get_pure = "test suite for get_pure" >::: [
+
+    "empty" >:: (fun _ ->
+        let state = Solver_state.create (prepare_cnf []) in
+        let s = Option.is_none (Test_expose.pure state) in
+        assert_bool "Expected no pure literals" s
+      );
+
+    "mono-clause_some" >:: (fun _ ->
+        let cnf = clause_set_of_lists [[2; -2; 1]] in
+        let state = Solver_state.create cnf in
+        match Test_expose.pure state with
+        | Some lits ->
+          assert_true (LiteralSet.equal lits (LiteralSet.singleton 1))
+        | None ->
+          assert_failure "Expected pure literal {1}, but got None"
+      );
+
+    "mono-clause_none" >:: (fun _ ->
+        let cnf = clause_set_of_lists [[1; -1]] in
+        let state = Solver_state.create cnf in
+        let s = Option.is_none (Test_expose.pure state) in
+        assert_bool "Expected no pure literals" s
+      );
+
+    "multi-clause_some" >:: (fun _ ->
+        let cnf = clause_set_of_lists [[1; -1]; [-1; 3]] in
+        let state = Solver_state.create cnf in
+        match Test_expose.pure state with
+        | Some lits ->
+          assert_true (LiteralSet.equal lits (LiteralSet.singleton 3))
+        | None ->
+          assert_failure "Expected pure literal {3}, but got None"
+      );
+
+    "multi-clause_none" >:: (fun _ ->
+        let cnf = clause_set_of_lists [[1; -2]; [-1; 2]] in
+        let state = Solver_state.create cnf in
+        let s = Option.is_none (Test_expose.pure state) in
+        assert_bool "Expected no pure literals" s
+      );
+  ]
+
 
 let test_simplify = "test suite for simplify" >::: [
-  "empty CNF" >:: (fun _ ->
-    assert_equal_cnf [] (Test_expose.simplify (LiteralSet.singleton 1) [])
-  );
-  "mono-clause removed" >:: (fun _ ->
-    let cs = clause_set_of_lists [[1; 2; 3; 4]] in
-    assert_equal_cnf [] (Test_expose.simplify (LiteralSet.singleton 1) cs)
-  );
-  "multi-clause removing literal 1" >:: (fun _ ->
-    let cs = clause_set_of_lists [[1;2;3;4]] in
-    let expected = clause_set_of_lists [[2;3;4]] in
-    assert_equal_cnf expected (Test_expose.simplify (LiteralSet.singleton (-1)) cs)
-  );
-  "multi-clause with conflict" >:: (fun _ ->
-    let cs = clause_set_of_lists [[-1]; [1;2]] in
-    let expected = clause_set_of_lists [[]] in
-    assert_equal_cnf expected (Test_expose.simplify (LiteralSet.singleton 1) cs)
-  );
-  "no literal to remove" >:: (fun _ ->
-    let cs = clause_set_of_lists [[2;3]; [-1;3;4]] in
-    let expected = clause_set_of_lists [[2;3]; [3;4]] in
-    assert_equal_cnf expected (Test_expose.simplify (LiteralSet.singleton 1) cs)
-  );
-  "all clauses removed" >:: (fun _ ->
-    let cs = clause_set_of_lists [[2]; [2;3]] in
-    assert_equal_cnf [] (Test_expose.simplify (LiteralSet.singleton 2) cs)
-  );
-]
-*)
+
+    "empty CNF" >:: (fun _ ->
+        let state = Solver_state.create [] in
+        assert_equal_cnf [] (Test_expose.simplify state (LiteralSet.singleton 1) [])
+      );
+
+    "mono-clause removed" >:: (fun _ ->
+        let cs = clause_set_of_lists [[1; 2; 3; 4]] in
+        let state = Solver_state.create cs in
+        assert_equal_cnf [] (Test_expose.simplify state (LiteralSet.singleton 1) cs)
+      );
+
+    "multi-clause removing literal -1" >:: (fun _ ->
+        let cs = clause_set_of_lists [[1;2;3;4]] in
+        let expected = clause_set_of_lists [[2;3;4]] in
+        let state = Solver_state.create cs in
+        assert_equal_cnf expected (Test_expose.simplify state (LiteralSet.singleton (-1)) cs)
+      );
+
+    "multi-clause with conflict" >:: (fun _ ->
+        let cs = clause_set_of_lists [[-1]; [1;2]] in
+        let expected = clause_set_of_lists [[]] in
+        let state = Solver_state.create cs in
+        assert_equal_cnf expected (Test_expose.simplify state (LiteralSet.singleton 1) cs)
+      );
+      (*
+
+    "no literal to remove" >:: (fun _ ->
+        let cs = clause_set_of_lists [[2;3]; [-1;3;4]] in
+        let expected = clause_set_of_lists [[2;3]; [3;4]] in
+        let state = Solver_state.create cs in
+        assert_equal_cnf expected (Test_expose.simplify state (LiteralSet.singleton 1) cs)
+      );
+    *)
+    
+    "all clauses removed" >:: (fun _ ->
+        let cs = clause_set_of_lists [[2]; [2;3]] in
+        let state = Solver_state.create cs in
+        assert_equal_cnf [] (Test_expose.simplify state (LiteralSet.singleton 2) cs)
+      );
+  ]
+
+
 let test_suite = "DPLL internal tests" >::: [
   test_get_unitary;
- (* test_get_pure;
-  test_simplify; *)
+  test_get_pure; 
+   test_simplify; 
 ]
 
 let _ = run_test_tt_main test_suite

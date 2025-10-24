@@ -99,7 +99,7 @@ let simplify (state: Solver_state.t) (literals: LiteralSet.t) (clauses: cnf): cn
 (* ----------------- Solveur dpll récursif ----------------- *)
 
 (**
-	[unitaire: Sat_types.cnf -> Sat_types.LiteralSet.t option]
+	[get_unitaries: Sat_types.cnf -> Sat_types.LiteralSet.t option]
 	> returns the set of unit literals found in [clauses], if any.
 
 	A unit clause is a clause containing only one literal.  
@@ -108,7 +108,7 @@ let simplify (state: Solver_state.t) (literals: LiteralSet.t) (clauses: cnf): cn
 	@param clauses The CNF formula.
 	@return [Some literals] if unit clauses exist, [None] otherwise.
 *)
-let unitaire (clauses: cnf): LiteralSet.t option = (*entry : cnf = clause list, clause : LiteralSet.t -> Somet set si unit, None sinon*) 
+let get_unitaries (clauses: cnf): LiteralSet.t option = (*entry : cnf = clause list, clause : LiteralSet.t -> Somet set si unit, None sinon*) 
 	let res = 
 		List.fold_left (fun acc clause ->
 			match LiteralSet.cardinal clause = 1 with
@@ -179,15 +179,15 @@ let get_random_literal (state: Solver_state.t): literal option =
 	@return A {!Sat_types.result} ([Sat model] or [Unsat]).
 *)
 let rec solveur_dpll_rec (state: Solver_state.t) (clauses: cnf) (inter: interpretation): result =
-	if clauses = [] then Sat inter
-	else 
+	if clauses = [] then Sat inter else 
 	if is_clause_empty clauses
 	then Unsat  (* empty clause exists*)
 	else
-		match unitaire clauses with
+		match get_unitaries clauses with
 		| Some literals ->
 			let save = Solver_state.make_save (state) (literals) in
-			let res = solveur_dpll_rec state (simplify state literals clauses) (LiteralSet.union literals inter) in (
+			let res = solveur_dpll_rec state (simplify state literals clauses) (LiteralSet.union literals inter)
+			in (
 				match res with
 				| Sat _ -> res
 				| Unsat -> Solver_state.restore_save state save; Unsat
@@ -196,7 +196,8 @@ let rec solveur_dpll_rec (state: Solver_state.t) (clauses: cnf) (inter: interpre
 			match pur state with
 			| Some literals -> 
 				let save = Solver_state.make_save (state) (literals) in
-				let res = solveur_dpll_rec state (simplify state literals clauses) (LiteralSet.union literals inter) in (
+				let res = solveur_dpll_rec state (simplify state literals clauses) (LiteralSet.union literals inter)
+				in (
 					match res with
 					| Sat _ -> res
 					| Unsat -> Solver_state.restore_save state save; Unsat
@@ -207,14 +208,16 @@ let rec solveur_dpll_rec (state: Solver_state.t) (clauses: cnf) (inter: interpre
 				| Some l ->
 					let l = LiteralSet.singleton l in (* Essential, converts l into a singleton *)
 					let save = Solver_state.make_save (state) (l) in
-					let res = solveur_dpll_rec state (simplify state l clauses) (LiteralSet.union l inter) in (
+					let res = solveur_dpll_rec state (simplify state l clauses) (LiteralSet.union l inter)
+					in (
 						match res with
 						| Sat _ -> res
 						| Unsat ->
 							Solver_state.restore_save state save;
 							let opposite_l = LiteralSet.map (fun elt -> -elt) l in (* Essential, converts {l} in {-l} *)
 							let save = Solver_state.make_save (state) (opposite_l) in
-							let res = solveur_dpll_rec state (simplify state opposite_l clauses) (LiteralSet.union opposite_l inter) in (
+							let res = solveur_dpll_rec state (simplify state opposite_l clauses) (LiteralSet.union opposite_l inter)
+							in (
 								match res with
 								| Sat _ -> res
 								| Unsat -> Solver_state.restore_save state save; Unsat
@@ -233,4 +236,4 @@ let rec solveur_dpll_rec (state: Solver_state.t) (clauses: cnf) (inter: interpre
 *)
 let dpll_solver (clauses: cnf): result = 
 	let state = Solver_state.create clauses in
-	 solveur_dpll_rec (state) (clauses) (LiteralSet.empty);;
+	solveur_dpll_rec (state) (clauses) (LiteralSet.empty);;

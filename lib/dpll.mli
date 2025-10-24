@@ -10,3 +10,8 @@ val print_result : Sat_types.result -> unit
     Cette fonction utilise l'algorithme DPLL.
 *)
 val dpll_solver : Sat_types.cnf -> Sat_types.result
+
+module Test_expose : sig
+	val get_unitaries: Sat_types.cnf -> Sat_types.LiteralSet.t option
+    val pur: Sat_types.Solver_state.t -> Sat_types.LiteralSet.t option
+end

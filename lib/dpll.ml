@@ -99,7 +99,7 @@ let simplify (state: Solver_state.t) (literals: LiteralSet.t) (clauses: cnf): cn
 (* ----------------- Solveur dpll récursif ----------------- *)
 
 (**
-	[unitaire: Sat_types.cnf -> Sat_types.LiteralSet.t option]
+	[get_unitaries: Sat_types.cnf -> Sat_types.LiteralSet.t option]
 	> returns the set of unit literals found in [clauses], if any.
 
 	A unit clause is a clause containing only one literal.  
@@ -108,7 +108,7 @@ let simplify (state: Solver_state.t) (literals: LiteralSet.t) (clauses: cnf): cn
 	@param clauses The CNF formula.
 	@return [Some literals] if unit clauses exist, [None] otherwise.
 *)
-let unitaire (clauses: cnf): LiteralSet.t option = (*entry : cnf = clause list, clause : LiteralSet.t -> Somet set si unit, None sinon*) 
+let get_unitaries (clauses: cnf): LiteralSet.t option = (*entry : cnf = clause list, clause : LiteralSet.t -> Somet set si unit, None sinon*) 
 	let res = 
 		List.fold_left (fun acc clause ->
 			match LiteralSet.cardinal clause = 1 with
@@ -184,7 +184,7 @@ let rec solveur_dpll_rec (state: Solver_state.t) (clauses: cnf) (inter: interpre
 	if is_clause_empty clauses
 	then Unsat  (* empty clause exists*)
 	else
-		match unitaire clauses with
+		match get_unitaries clauses with
 		| Some literals ->
 			let save = Solver_state.make_save (state) (literals) in
 			let res = solveur_dpll_rec state (simplify state literals clauses) (LiteralSet.union literals inter) in (
@@ -234,3 +234,7 @@ let rec solveur_dpll_rec (state: Solver_state.t) (clauses: cnf) (inter: interpre
 let dpll_solver (clauses: cnf): result = 
 	let state = Solver_state.create clauses in
 	 solveur_dpll_rec (state) (clauses) (LiteralSet.empty);;
+
+module Test_expose = struct
+	let get_unitaries = get_unitaries
+end

@@ -108,7 +108,7 @@ let simplify (state: Solver_state.t) (literals: LiteralSet.t) (clauses: cnf): cn
 	@param clauses The CNF formula.
 	@return [Some literals] if unit clauses exist, [None] otherwise.
 *)
-let unitaire (clauses: cnf): LiteralSet.t option = 
+let unitaire (clauses: cnf): LiteralSet.t option = (*entry : cnf = clause list, clause : LiteralSet.t -> Somet set si unit, None sinon*) 
 	let res = 
 		List.fold_left (fun acc clause ->
 			match LiteralSet.cardinal clause = 1 with
@@ -128,8 +128,8 @@ let unitaire (clauses: cnf): LiteralSet.t option =
 	@param state The current solver state.
 	@return [Some literals] if pure literals exist, [None] otherwise.
 *)
-let pur (state: Solver_state.t): LiteralSet.t option = 
-	let res = Solver_state.get_max_float_polarity state 
+let pur (state: Solver_state.t): LiteralSet.t option =  
+	let res = Solver_state.get_max_float_polarity state (*call auxiliary function get get pure literals*)
 	in (if LiteralSet.is_empty res then None else Some(res))
 ;;
 
@@ -182,7 +182,7 @@ let rec solveur_dpll_rec (state: Solver_state.t) (clauses: cnf) (inter: interpre
 	if clauses = [] then Sat inter
 	else 
 	if is_clause_empty clauses
-	then Unsat
+	then Unsat  (* empty clause exists*)
 	else
 		match unitaire clauses with
 		| Some literals ->

@@ -131,10 +131,10 @@ let simplify (state: Solver_state.t) (literals: LiteralSet.t) (clauses: cnf): cn
 	@param clauses The CNF formula.
 	@return [Some literals] if unit clauses exist, [None] otherwise.
 *)
-let unitaire (clauses: cnf): LiteralSet.t option = 
+let unitaire (clauses: cnf): LiteralSet.t option = (*entry : cnf = clause list, clause : LiteralSet.t -> Somet set si unit, None sinon*) 
 	let res = 
 		List.filter (fun clause -> LiteralSet.cardinal clause = 1) clauses
-		|> (fun clauses -> List.fold_left (LiteralSet.union) LiteralSet.empty clauses)
+		|> (fun clauses -> List.fold_left (LiteralSet.union) LiteralSet.empty clauses) (*Combine unit litterals*)
 	in (if LiteralSet.is_empty res then None else Some res)
 ;;
 
@@ -148,8 +148,8 @@ let unitaire (clauses: cnf): LiteralSet.t option =
 	@param state The current solver state.
 	@return [Some literals] if pure literals exist, [None] otherwise.
 *)
-let pur (state: Solver_state.t): LiteralSet.t option = 
-	let res = Solver_state.get_max_float_polarity state 
+let pur (state: Solver_state.t): LiteralSet.t option =  
+	let res = Solver_state.get_max_float_polarity state (*call auxiliary function get get pure literals*)
 	in (if LiteralSet.is_empty res then None else Some(res))
 ;;
 
@@ -201,15 +201,15 @@ let get_random_literal (state: Solver_state.t): literal option =
 let rec solveur_dpll_rec (state: Solver_state.t) (clauses: cnf) (inter: interpretation): result =
 	(* print_cnf clauses; *)
 	(* Solver_state.dump_memory state; *)
-	if clauses = [] then Sat inter
+	if clauses = [] then Sat inter (* all claused statisfied*)
 	else 
 	if is_clause_empty clauses
-	then Unsat
+	then Unsat  (* empty clause exists*)
 	else
 		match unitaire clauses with
 		| Some literals ->
 			(* Logger.log Logger.VIOLET "Unitairy"; *)
-			let save = Solver_state.make_save (state) (literals) in
+			let save = Solver_state.make_save (state) (literals) in (*save current state, simplify CNF, update intepretation, recurse, restore if branch fails*)
 			let res = solveur_dpll_rec state (simplify state literals clauses) (LiteralSet.union literals inter) in (
 				match res with
 				| Sat _ -> res

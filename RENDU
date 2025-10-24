@@ -12,7 +12,7 @@ Identité
 --------
 Nombre de binôme: 22
 Nom, prénom 1: ABRILE, Maxence
-Nom, prénom 2: RICHEL, Natale
+Nom, prénom 2: RICHELLE, Natale
 
 
 Questions sur votre code
@@ -119,7 +119,9 @@ Après la détection, pur vérifie si l’ensemble des littéraux purs est vide 
    `solveur_split` et `solveur_dpll_rec` ont un comportement
    différent, et expliquez les différences entre ces deux fonctions.
 
-**à remplir**
+- solver_split va directement appliquer la dernière étape de dpll à savoir prendre un litteral (au hasard) et le passer à Vrai.
+
+solver_dpll_rec prend d'abord une clause unitaire, puis pure, et enfin un litteral (aléatoire)
 
 ---
 5. Quelle a été votre méthodologie de test ?

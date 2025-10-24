@@ -56,36 +56,9 @@ let print_result: result -> unit = function
 		print_string "0\n"
 ;;
 
-let print_cnf (c: cnf) = 
-	c
-	|> List.map (fun sub ->
-		sub
-		|> LiteralSet.elements
-		|> List.map string_of_int
-		|> String.concat ", "
-		|> Printf.sprintf "[%s]"
-	)
-	|> String.concat "; "
-	|> Logger.log Logger.GRAY
-;;
-
-
-(**
-	[remove_literals_from_clause: Sat_types.LiteralSet.t -> Sat_types.LiteralSet.t -> Sat_types.LiteralSet.t] 
-	> removes from [clause] all literals present in [literals].
-
-	This function is an auxiliary helper used by {!simplify}.
-
-	@param literals The set of literals to remove.
-	@param clause The clause to simplify.
-	@return The simplified clause.
-*)
-let remove_literals_from_clause (literals: LiteralSet.t) (clause: LiteralSet.t): LiteralSet.t =
-	LiteralSet.filter (fun elt -> not (LiteralSet.mem elt literals)) clause
-;;
-
+(* O(n * log(n)) *)
 let check_contradiction (literals: LiteralSet.t): bool =
-	LiteralSet.exists (fun elt -> LiteralSet.exists (fun elt' -> elt = -elt') literals) literals
+	LiteralSet.exists (fun l -> LiteralSet.mem (-l) literals) literals
 ;;
 
 (**
@@ -110,12 +83,16 @@ let simplify (state: Solver_state.t) (literals: LiteralSet.t) (clauses: cnf): cn
 	else (
 		let pos = literals in
 		let neg = LiteralSet.map (fun elt -> -elt) pos in
-
 		Solver_state.remove_literal state pos;
 		Solver_state.remove_literal state neg;
-		(* Removes all clauses where a literal from literals exists *)
-		List.filter (fun clause -> LiteralSet.disjoint pos clause) clauses
-		|> List.map (fun clause -> remove_literals_from_clause neg clause)
+
+		List.fold_left (fun acc clause ->
+			if LiteralSet.exists (fun l -> LiteralSet.mem l pos) clause then acc
+			else
+				let clause' =
+				LiteralSet.filter (fun l -> not (LiteralSet.mem l neg)) clause
+				in clause' :: acc
+		) [] clauses
 	)
 ;;
 
@@ -133,8 +110,11 @@ let simplify (state: Solver_state.t) (literals: LiteralSet.t) (clauses: cnf): cn
 *)
 let unitaire (clauses: cnf): LiteralSet.t option = 
 	let res = 
-		List.filter (fun clause -> LiteralSet.cardinal clause = 1) clauses
-		|> (fun clauses -> List.fold_left (LiteralSet.union) LiteralSet.empty clauses)
+		List.fold_left (fun acc clause ->
+			match LiteralSet.cardinal clause = 1 with
+			| true -> LiteralSet.union acc clause 
+			| false -> acc
+		) LiteralSet.empty clauses
 	in (if LiteralSet.is_empty res then None else Some res)
 ;;
 
@@ -160,7 +140,7 @@ let pur (state: Solver_state.t): LiteralSet.t option =
 	@param clauses The CNF to test.
 	@return [true] if an empty clause exists, [false] otherwise.
 *)
-let is_clause_empty (clauses: cnf): bool = List.exists (LiteralSet.is_empty) clauses;;
+let is_clause_empty (clauses: cnf): bool = List.mem (LiteralSet.empty) clauses;;
 
 (**
 	[get_random_literal Sat_types.Solver_state.t -> Sat_types.literal option]
@@ -199,8 +179,6 @@ let get_random_literal (state: Solver_state.t): literal option =
 	@return A {!Sat_types.result} ([Sat model] or [Unsat]).
 *)
 let rec solveur_dpll_rec (state: Solver_state.t) (clauses: cnf) (inter: interpretation): result =
-	(* print_cnf clauses; *)
-	(* Solver_state.dump_memory state; *)
 	if clauses = [] then Sat inter
 	else 
 	if is_clause_empty clauses
@@ -208,7 +186,6 @@ let rec solveur_dpll_rec (state: Solver_state.t) (clauses: cnf) (inter: interpre
 	else
 		match unitaire clauses with
 		| Some literals ->
-			(* Logger.log Logger.VIOLET "Unitairy"; *)
 			let save = Solver_state.make_save (state) (literals) in
 			let res = solveur_dpll_rec state (simplify state literals clauses) (LiteralSet.union literals inter) in (
 				match res with
@@ -218,7 +195,6 @@ let rec solveur_dpll_rec (state: Solver_state.t) (clauses: cnf) (inter: interpre
 		| None ->
 			match pur state with
 			| Some literals -> 
-				(* Logger.log Logger.VIOLET "Pure"; *)
 				let save = Solver_state.make_save (state) (literals) in
 				let res = solveur_dpll_rec state (simplify state literals clauses) (LiteralSet.union literals inter) in (
 					match res with
@@ -229,14 +205,12 @@ let rec solveur_dpll_rec (state: Solver_state.t) (clauses: cnf) (inter: interpre
 				match get_random_literal state with
 				| None -> Unsat (* For more security, already checked upper *)
 				| Some l ->
-					(* Logger.log Logger.VIOLET "Try"; *)
 					let l = LiteralSet.singleton l in (* Essential, converts l into a singleton *)
 					let save = Solver_state.make_save (state) (l) in
 					let res = solveur_dpll_rec state (simplify state l clauses) (LiteralSet.union l inter) in (
 						match res with
 						| Sat _ -> res
 						| Unsat ->
-							(* Logger.log Logger.VIOLET "TryNeg";  *)
 							Solver_state.restore_save state save;
 							let opposite_l = LiteralSet.map (fun elt -> -elt) l in (* Essential, converts {l} in {-l} *)
 							let save = Solver_state.make_save (state) (opposite_l) in

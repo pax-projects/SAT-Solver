@@ -109,28 +109,24 @@ module Solver_state = struct
 		| Some l_occurences, Some l_occurences' -> (float_of_int l_occurences) /. (float_of_int l_occurences')
 	;;
 
-	(** Converts all literals from the table into a node set with polarities. *)
-	let keys_to_set_with_polarisation (hash_tbl: lit_table_type): NodeSet.t =
-		Hashtbl.fold
-		(fun key _ acc -> 
-			NodeSet.add
-			(Node.create key (calculate_polarity_score hash_tbl key))
-			acc
-		)
-		hash_tbl
-		NodeSet.empty
-	;;
-
 	(** Adds a literal to a node set with an updated polarity score. *)
 	let add_literal_to_node_set (set: NodeSet.t) (hash_tbl: lit_table_type) (l: literal): NodeSet.t =
 		(* Logger.log Logger.SUCCESS "Adding literal from node set"; *)
 		NodeSet.add (Node.create l (calculate_polarity_score hash_tbl l)) set
 	;;
 
+	(** Converts all literals from the table into a node set with polarities. *)
+	let keys_to_set_with_polarisation (hash_tbl: lit_table_type): NodeSet.t =
+		Hashtbl.fold
+		(fun key _ acc -> add_literal_to_node_set acc hash_tbl key)
+		hash_tbl
+		NodeSet.empty
+	;;
+
 	(** Removes a literal from a node set. *)
 	let remove_literal_of_node_set (set: NodeSet.t) (l: literal): NodeSet.t =
 		(* Logger.log Logger.WARNING "Removing literal from node set"; *)
-		NodeSet.filter (fun node -> node.Node.literal <> l) set
+		NodeSet.filter (fun node -> node.literal <> l) set
 	;;
 
 	(** Finds a node in a set corresponding to the given literal. *)
@@ -138,13 +134,7 @@ module Solver_state = struct
 		(* Logger.log Logger.WARNING (Printf.sprintf "Finding node where l = %d in %d elements" l (NodeSet.cardinal set)); *)
 		(* Using filter+choose because without knowing why, NodeSet.find_first doesn't work... *)
 		NodeSet.choose (
-			NodeSet.filter (
-				fun elt -> (
-					(* Printf.printf "%d %f\n" elt.literal elt.polarity_score *)
-				); 
-				elt.literal = l
-			) 
-			set
+			NodeSet.filter (fun elt -> elt.literal = l) set
 		)
 	;;
 		
@@ -263,14 +253,12 @@ module Solver_state = struct
 			let old_count = Hashtbl.find state.lit_table k in
 			let old_node = find_node_by_literal state.literals_polarisation k in
 			(k, old_count, old_node)
-		in LiteralSet.elements literals 
-		|> List.map (
-			fun l -> 
-				if (literal_exists state (-l)) 
-				then [entry_for l; entry_for (-l)] 
-				else [entry_for l]
-			)
-		|> List.flatten
+		in LiteralSet.fold (fun l acc ->
+			let neg = -l in
+			if literal_exists state neg
+			then entry_for l :: entry_for neg :: acc
+			else entry_for l :: acc
+		) literals []
 	;;
 
 	(** 
@@ -284,16 +272,11 @@ module Solver_state = struct
 	let restore_save (state: t) (save: save_type): unit =
 		(* Logger.log Logger.ERROR "Restoring save"; *)
 		(* dump_memory state; *)
-		List.iter (fun (key, old_count, _) ->
-			(* Logger.log Logger.ERROR (string_of_int key);  *)
-			Hashtbl.replace state.lit_table key old_count
-		)
-		save;
-
-		List.iter (fun (key, _, _) ->
-			state.literals_polarisation <- (add_literal_to_node_set state.literals_polarisation state.lit_table key)
-		)
-		save;
+		List.iter (fun (key, old_count, old_node) ->
+			Hashtbl.replace (state.lit_table) (key) (old_count);
+			state.literals_polarisation <- NodeSet.add (old_node) (state.literals_polarisation)
+			(* TODO: Check if it's really slower (add_literal_to_node_set state.literals_polarisation state.lit_table key) *)
+		) save;
 
 		(* Logger.log Logger.ERROR "Memory restored"; *)
 		(* dump_memory state; *)

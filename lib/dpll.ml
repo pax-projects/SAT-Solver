@@ -128,7 +128,7 @@ let get_unitaries (clauses: cnf): LiteralSet.t option = (*entry : cnf = clause l
 	@param state The current solver state.
 	@return [Some literals] if pure literals exist, [None] otherwise.
 *)
-let pur (state: Solver_state.t): LiteralSet.t option =  
+let pure (state: Solver_state.t): LiteralSet.t option =  
 	let res = Solver_state.get_max_float_polarity state (*call auxiliary function get get pure literals*)
 	in (if LiteralSet.is_empty res then None else Some(res))
 ;;
@@ -193,7 +193,7 @@ let rec solveur_dpll_rec (state: Solver_state.t) (clauses: cnf) (inter: interpre
 				| Unsat -> Solver_state.restore_save state save; Unsat
 			)
 		| None ->
-			match pur state with
+			match pure state with
 			| Some literals -> 
 				let save = Solver_state.make_save (state) (literals) in
 				let res = solveur_dpll_rec state (simplify state literals clauses) (LiteralSet.union literals inter)
@@ -236,4 +236,10 @@ let rec solveur_dpll_rec (state: Solver_state.t) (clauses: cnf) (inter: interpre
 *)
 let dpll_solver (clauses: cnf): result = 
 	let state = Solver_state.create clauses in
-	solveur_dpll_rec (state) (clauses) (LiteralSet.empty);;
+	 solveur_dpll_rec (state) (clauses) (LiteralSet.empty);;
+
+module Test_expose = struct
+	let get_unitaries = get_unitaries
+	let pure = pure
+	let simplify = simplify
+end

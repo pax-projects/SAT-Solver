@@ -56,7 +56,20 @@ let print_result: result -> unit = function
 		print_string "0\n"
 ;;
 
-(* O(n * log(n)) *)
+(** 
+   [check_contradiction: LiteralSet.t -> bool]  
+   > Checks whether the given set of literals contains a contradiction.
+
+   - A contradiction occurs when a literal [l] and its negation [-l] 
+     both appear in the same set.
+   - If such a pair exists, the function returns [true].
+   - Otherwise, it returns [false].
+
+   @param literals The set of literals to check.
+   @return [true] if there is a contradiction, [false] otherwise.
+*)
+
+(* Complexity : O(n * log(n)) *)
 let check_contradiction (literals: LiteralSet.t): bool =
 	LiteralSet.exists (fun l -> LiteralSet.mem (-l) literals) literals
 ;;
@@ -238,6 +251,16 @@ let dpll_solver (clauses: cnf): result =
 	let state = Solver_state.create clauses in
 	 solveur_dpll_rec (state) (clauses) (LiteralSet.empty);;
 
+(** 
+   [Test_expose]  
+   > Auxiliary module used for testing internal solver functions.
+
+   - Exposes selected internal functions such as [get_unitaries], [pure], 
+     and [simplify] so they can be directly tested without modifying 
+     the main solver interface.
+   - This module should only be used during the testing phase and not 
+     in production code.
+*)
 module Test_expose = struct
 	let get_unitaries = get_unitaries
 	let pure = pure

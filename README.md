@@ -32,3 +32,9 @@ make solve FILE=examples/SAT/sudoku-4x4.cnf
 ### Run unit test
 
 make test
+
+### Help 
+Pour connaitre les commandes 
+
+make help
+

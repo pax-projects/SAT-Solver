@@ -16,12 +16,6 @@ let clause_set_of_lists (l: int list list) : LiteralSet.t list =
   l
   |> List.map LiteralSet.of_list
 
-
-  (* turn an option in a LiteralSet *)
-let unwrap_unitaries = function
-  | Some s -> s
-  | None -> LiteralSet.empty
-
 (** 
    [test_get_unitary]
    > Test suite for the [get_unitaries] function.

@@ -1,41 +1,18 @@
-
-(**  Les literaux sont représentés par des entiers. 
-    Un entier positif n représente le littéral n, 
-    un entier négatif -n représente le littéral ¬n.
-  *)
-type literal = int
-(** Une clause est une disjonction de littéraux. 
-    On la représente ici simplement par une liste. *)
-type clause = literal list
-(** Une formule en CNF est une conjonction de clauses.
-    On la représente ici simplement par une liste de clauses. *)
-type cnf = clause list
-type interpretation 
-type result = Sat of interpretation | Unsat
-
-module LiteralSet : Set.S with type elt = int
-module ClauseSet : Set.S with type elt = LiteralSet.t
-
 (** Cette fonction prend en argument une liste d'entiers et renvoie une cnf *)
-val cnf_of_int_list_list : int list list -> cnf
+val prepare_cnf : int list list -> Sat_types.cnf
 
 (** Cette fonction prend un argument un objet de type resulat et l'affiche à l'écran. *)
-val print_model : result -> unit
+val print_result : Sat_types.result -> unit
 
-(** Cette fonction prend en argument une formule en CNF et renvoie 
+(** 
+    Cette fonction prend en argument une formule en CNF et renvoie 
     une interprétation qui la satisfait si elle existe, ou Unsat sinon.
     Cette fonction utilise l'algorithme DPLL.
-    *)
-val solver_dpll : cnf -> result
+*)
+val dpll_solver : Sat_types.cnf -> Sat_types.result
 
-module Test_expose: sig
-    val get_unitary : cnf -> literal option
-
-    val get_pure : cnf -> literal option
-
-    val simplify : literal -> cnf -> cnf
-
-    val cnf_to_clause_set : cnf -> ClauseSet.t
-end;;
-
- 
+module Test_expose : sig
+	val get_unitaries: Sat_types.cnf -> Sat_types.LiteralSet.t option
+    val pure: Sat_types.Solver_state.t -> Sat_types.LiteralSet.t option
+    val simplify: Sat_types.Solver_state.t -> Sat_types.LiteralSet.t -> Sat_types.cnf -> Sat_types.cnf
+end

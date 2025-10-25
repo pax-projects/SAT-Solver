@@ -1,167 +1,268 @@
+(**
+	{1 Module DPLL — A little SAT solver}
+
+	This module implements a SAT solver based on the DPLL (Davis–Putnam–Logemann–Loveland) algorithm.
+	It uses the DIMACS format (int list list) where integers represent literals (positive or negated).
+
+	The entry point of this module is {!dpll_solver}, which takes a CNF (see type definitions in {!Sat_types})
+	and returns a {!Sat_types.result} — either [Sat model] or [Unsat].
+
+	To build a CNF, use {!prepare_cnf}.  
+	To display the result, use {!print_result}.
+
+	When satisfiable, the solver prints the model on standard output (in DIMACS style).  
+	Otherwise, it prints the word [UNSAT].
+
+	Have fun with SAT&Lite !
+*)
+
 open List
 
-(** Some types helping *)
-type literal = int
-type clause = literal list
-type cnf = clause list
-type interpretation = int list
-type result = Sat of interpretation | Unsat
+open Sat_types
 
-(* Creating a new set to store literals *)
-module LiteralSet = Set.Make(Int);; (* Unsing Int is enough to represent literals with out using any literal module *)
-module ClauseSet = Set.Make(LiteralSet);;
+(** ----------------- Utils Funtions ----------------- *)
 
-(** Utils functions *)
-let cnf_to_clause_set (clauses: cnf): ClauseSet.t = ClauseSet.of_list (map (LiteralSet.of_list) clauses);;
-let cnf_of_int_list_list (l: int list list) : cnf = l;;
+(**
+	[prepare_cnf: int list list -> Sat_types.cnf]
+	> converts a raw DIMACS-style integer list list into a proper
+	> {!Sat_types.cnf} (a list of {!Sat_types.LiteralSet.t}).
 
-(** val print_model : result -> unit
-  *
-  * Displays solver result
+	This conversion is required for the solver to interpret the CNF correctly.
+
+	@param l A CNF represented as [int list list].
+	@return The same CNF represented with literal sets list.
 *)
-let print_model: result -> unit = function
-  | Unsat   -> print_string "UNSAT\n"
-  | Sat modele -> print_string "SAT\n";
-     let model_sorted = sort (fun i j -> (abs i) - (abs j)) modele in
-     List.iter (fun i -> print_int i; print_string " ") model_sorted;
-     print_string "0\n"
-
-(** val simplify : literal -> cnf -> cnf 
-  *
-  * Simplify all clauses setting l to true and -l to false.
-  * In other words, it delete every CNF clause containing l and removing -l from every CNF clause.
-
-  * [Complexity]:
-  * - TODO
-*)
-let simplify (l: literal) (clauses: cnf) =
-  (* TODO: Moreover, here the program takes list and convert them to Sets; this will be changed *)
-  let to_delete = (find_all (mem l) clauses) |> cnf_to_clause_set in
-  let full_set = clauses |> cnf_to_clause_set 
-  |> (ClauseSet.map (fun clause -> LiteralSet.remove (-l) clause)) (* Remove all opposite literals *)
-  in (ClauseSet.diff full_set to_delete)
-  |> ClauseSet.elements
-  |> map (LiteralSet.elements)
+let prepare_cnf (l: int list list): cnf = 
+	let aux l = List.map (LiteralSet.of_list) l
+	in aux l
 ;;
 
-(** flatten_clauses_to_set clauses: cnf -> LiteralSet.t
-  * Takes an input of type literal list list
-  * and returns a set of the flatten list.
+(**
+	[print_result: result -> unit]
+	> displays the solver result on standard output.
 
-  * [Complexity]: O(N) with N the total number of literals
+	- If the result is [Unsat], prints ["UNSAT"].
+	- If the result is [Sat model], prints ["SAT"] followed by the model literals
+	  in ascending absolute value order, then ["0"].
+
+	@param result The SAT solver result.
 *)
-let flatten_clauses_to_set (clauses: cnf): LiteralSet.t = LiteralSet.of_list (flatten clauses);;
-
-(** Dpll solver *)
-
-(** get_pure : cnf -> literal option
-  * Returns Some(l) if l is the first pure literal in the CNF;
-  * Returns None if there is no pure literal in the CNF.
-
-  * [Complexity]:
-  * - LiteralSet.filter   -> O(N * log(N))
-  * - LiteralSet.map      -> O(N * log(N))
-  * - LiteralSet.elements -> O(N)
-
-  * - LiteralSet.union    -> O(N + M) ~ O(max(N, M))
-  * - LiteralSet.diff     -> O(N + M) ~ O(max(N, M)) // Same as union
-  * - LiteralSet.inter    -> O(N + M) ~ O(max(N, M)) // Also same as union
-
-  * The maximum complexity in the worst cases should be about :
-  * O(3 * [N * log(N)] + 4 * N) ~ O(N*log(N))
-*)
-let get_pure (clauses: cnf) = 
-  (* Separates neg from pos by using sets *)
-  let res = 
-    let aux (flatten_clauses: LiteralSet.t) = 
-      let pos = LiteralSet.filter (fun lit -> lit >= 0) flatten_clauses in
-      let neg = flatten_clauses
-        |> LiteralSet.filter (fun lit -> lit <= 0) 
-        |> LiteralSet.map abs
-      in LiteralSet.diff (LiteralSet.union pos neg) (LiteralSet.inter pos neg) |> LiteralSet.elements
-    in aux (flatten_clauses_to_set clauses)
-  in match res with
-  | [] -> None
-  | _ -> Some (nth res 0) (* TODO: Change to full literal option list later (for optimisations) *)
+let print_result: result -> unit = function
+	| Unsat   -> print_string "UNSAT\n"
+	| Sat model -> let model = LiteralSet.elements model in
+		print_string "SAT\n";
+		let sort_model = sort (fun i j -> (abs i) - (abs j)) model in
+		List.iter (fun i -> print_int i; print_string " ") sort_model;
+		print_string "0\n"
 ;;
 
-(** get_unitary : cnf -> literal option
-  * Returns Some(l) if l is the literal in the first clause containing only one literal;
-  * Returns None else.
+(** 
+   [check_contradiction: LiteralSet.t -> bool]  
+   > Checks whether the given set of literals contains a contradiction.
 
-  * [Complexity]:
-  * - TODO
+   - A contradiction occurs when a literal [l] and its negation [-l] 
+     both appear in the same set.
+   - If such a pair exists, the function returns [true].
+   - Otherwise, it returns [false].
+
+   @param literals The set of literals to check.
+   @return [true] if there is a contradiction, [false] otherwise.
 *)
-let rec get_unitary: cnf -> literal option = function 
-  | [] -> None
-  | hd::tl -> 
-      if length hd = 1 then 
-        (nth_opt hd 0)
-      else 
-        get_unitary tl
+
+(* Complexity : O(n * log(n)) *)
+let check_contradiction (literals: LiteralSet.t): bool =
+	LiteralSet.exists (fun l -> LiteralSet.mem (-l) literals) literals
 ;;
 
-(** is_sat : cnf -> interpretation -> bool
-  * Checks the correctness of an interpretation simplifying the CNF by
-  * each interpretaition literal.
+(**
+	[simplify: Sat_types.Solver_state.t -> Sat_types.LiteralSet.t -> Sat_types.cnf -> Sat_types.cnf]
+	> applies DPLL simplification for a given set of literals.
 
-  * [Complexity]:
-  * - TODO
+	It removes all clauses satisfied by the literals and deletes every negated literal
+	from the remaining clauses.
+
+	This function also updates the internal solver state.
+
+	@param state The current solver state.
+	@param literals The set of literals being assigned to true.
+	@param clauses The CNF formula to simplify.
+	@return The simplified CNF.
+
+	@see remove_literals_from_clause for per-clause simplification.
 *)
-let rec is_sat (clauses: cnf) (inter: interpretation) = match inter with
-  | [] -> length clauses = 0
-  | hd::tl -> is_sat (simplify hd clauses) tl
+let simplify (state: Solver_state.t) (literals: LiteralSet.t) (clauses: cnf): cnf =
+	if check_contradiction literals
+	then [LiteralSet.empty]
+	else (
+		let pos = literals in
+		let neg = LiteralSet.map (fun elt -> -elt) pos in
+		Solver_state.remove_literal state pos;
+		Solver_state.remove_literal state neg;
+
+		List.fold_left (fun acc clause ->
+			if LiteralSet.exists (fun l -> LiteralSet.mem l pos) clause then acc
+			else
+				let clause' =
+				LiteralSet.filter (fun l -> not (LiteralSet.mem l neg)) clause
+				in clause' :: acc
+		) [] clauses
+	)
 ;;
 
-let get_first_available_literal (clauses: cnf) = match clauses with
-  | [] -> None
-  | hd:: _ -> match hd with
-    | [] -> None
-    | hd'::_ -> (Some hd')
+(* ----------------- Solveur dpll récursif ----------------- *)
+
+(**
+	[get_unitaries: Sat_types.cnf -> Sat_types.LiteralSet.t option]
+	> returns the set of unit literals found in [clauses], if any.
+
+	A unit clause is a clause containing only one literal.  
+	These literals can be directly assigned to true during propagation.
+
+	@param clauses The CNF formula.
+	@return [Some literals] if unit clauses exist, [None] otherwise.
+*)
+let get_unitaries (clauses: cnf): LiteralSet.t option = (*entry : cnf = clause list, clause : LiteralSet.t -> Somet set si unit, None sinon*) 
+	let res = 
+		List.fold_left (fun acc clause ->
+			match LiteralSet.cardinal clause = 1 with
+			| true -> LiteralSet.union acc clause 
+			| false -> acc
+		) LiteralSet.empty clauses
+	in (if LiteralSet.is_empty res then None else Some res)
 ;;
 
-(** solver_dpll_rec : cnf -> interpretation -> result
-  * Executes a backtracking algorithm using all the above functions.
+(**
+	[pur: Sat_types.Solver_state.t -> Sat_types.LiteralSet.t option]
+	> returns a set of pure literals from the solver state.
 
-  * [Complexity]:
-  * - TODO
+	A pure literal is one that appears with only one polarity in the formula
+	(either always positive or always negative).
+
+	@param state The current solver state.
+	@return [Some literals] if pure literals exist, [None] otherwise.
 *)
-let rec solver_dpll_rec (clauses: cnf) (inter: interpretation) =
-  if is_sat clauses inter then
-    Sat(inter)
-  else (
-    match get_unitary clauses with
-    | Some unit_lit ->
-      let new_clauses = simplify unit_lit clauses in
-      let new_inter = (unit_lit :: inter) in
-      solver_dpll_rec new_clauses new_inter 
+let pure (state: Solver_state.t): LiteralSet.t option =  
+	let res = Solver_state.get_max_float_polarity state (*call auxiliary function get get pure literals*)
+	in (if LiteralSet.is_empty res then None else Some(res))
+;;
 
-    | None -> match get_pure clauses with
-      | Some pure_lit -> 
-        let new_clauses = simplify pure_lit clauses in
-        let new_inter = (pure_lit :: inter) in
-        solver_dpll_rec new_clauses new_inter
+(**
+	[is_clause_empty: Sat_types.cnf -> bool]
+	> checks if at least one clause in [clauses] is empty.
 
-      | None -> match get_first_available_literal clauses with
-        | None -> if (is_sat clauses inter)
-          then Sat(inter)
-          else Unsat
-        | Some lit -> let try_inter = 
-          solver_dpll_rec (simplify lit clauses) (lit :: inter) in
-          match try_inter with
-            | Sat _ -> try_inter
-            | Unsat -> solver_dpll_rec (simplify (-lit) clauses) ((-lit) :: inter) 
-  );;
-
-(** solver_dpll: cnf -> result
-  * Solves the problem by using solver_dpll_rec.
+	@param clauses The CNF to test.
+	@return [true] if an empty clause exists, [false] otherwise.
 *)
-let solver_dpll (clauses: cnf) = solver_dpll_rec clauses []
+let is_clause_empty (clauses: cnf): bool = List.mem (LiteralSet.empty) clauses;;
 
-module Test_expose = struct 
-  let get_unitary = get_unitary
-  let get_pure = get_pure
-  let simplify = simplify
+(**
+	[get_random_literal Sat_types.Solver_state.t -> Sat_types.literal option]
+	> returns a literal (heuristically chosen) from the solver state.
 
-  let cnf_to_clause_set = cnf_to_clause_set
-end;;
+	Typically, this function returns the literal with the highest polarity score.
+
+	@param state The current solver state.
+	@return [Some literal] if available, [None] otherwise.
+*)
+let get_random_literal (state: Solver_state.t): literal option = 
+	match Solver_state.NodeSet.max_elt_opt (state.literals_polarisation) with
+	| None -> None
+	| Some node -> Some (node.literal)
+;;
+
+(**
+	[solveur_dpll_rec Sat_types.Solver_state.t -> Sat_types.cnf -> Sat_types.interpretation -> Sat_types.result]
+	> is the recursive core of the DPLL algorithm.
+
+	This function applies the recursive DPLL procedure:
+	- If the CNF is empty --> [Sat inter].
+	- If an empty clause exists --> [Unsat].
+	- Otherwise, it selects literals to assign based on unit propagation, pure literals,
+	  or heuristic choice.
+
+	Each recursive step:
+	1. Saves the solver state.
+	2. Simplifies the CNF using {!simplify}.
+	3. Recursively calls itself.
+	4. Restores the state if the branch fails.
+
+	@param state The solver state (mutable context).
+	@param clauses The current CNF.
+	@param inter The current partial interpretation.
+	@return A {!Sat_types.result} ([Sat model] or [Unsat]).
+*)
+let rec solveur_dpll_rec (state: Solver_state.t) (clauses: cnf) (inter: interpretation): result =
+	if clauses = [] then Sat inter else 
+	if is_clause_empty clauses
+	then Unsat  (* empty clause exists*)
+	else
+		match get_unitaries clauses with
+		| Some literals ->
+			let save = Solver_state.make_save (state) (literals) in
+			let res = solveur_dpll_rec state (simplify state literals clauses) (LiteralSet.union literals inter)
+			in (
+				match res with
+				| Sat _ -> res
+				| Unsat -> Solver_state.restore_save state save; Unsat
+			)
+		| None ->
+			match pure state with
+			| Some literals -> 
+				let save = Solver_state.make_save (state) (literals) in
+				let res = solveur_dpll_rec state (simplify state literals clauses) (LiteralSet.union literals inter)
+				in (
+					match res with
+					| Sat _ -> res
+					| Unsat -> Solver_state.restore_save state save; Unsat
+				)
+			| None ->
+				match get_random_literal state with
+				| None -> Unsat (* For more security, already checked upper *)
+				| Some l ->
+					let l = LiteralSet.singleton l in (* Essential, converts l into a singleton *)
+					let save = Solver_state.make_save (state) (l) in
+					let res = solveur_dpll_rec state (simplify state l clauses) (LiteralSet.union l inter)
+					in (
+						match res with
+						| Sat _ -> res
+						| Unsat ->
+							Solver_state.restore_save state save;
+							let opposite_l = LiteralSet.map (fun elt -> -elt) l in (* Essential, converts {l} in {-l} *)
+							let save = Solver_state.make_save (state) (opposite_l) in
+							let res = solveur_dpll_rec state (simplify state opposite_l clauses) (LiteralSet.union opposite_l inter)
+							in (
+								match res with
+								| Sat _ -> res
+								| Unsat -> Solver_state.restore_save state save; Unsat
+							)
+					)
+;;
+
+(**
+	[dpll_solver: Sat_types.cnf -> Sat_types.result]
+	> initializes a solver state and starts the recursive DPLL process.
+
+	This is the **main entry point** of the module.
+
+	@param clauses The CNF formula to solve.
+	@return The result of the SAT resolution, as a {!Sat_types.result}.
+*)
+let dpll_solver (clauses: cnf): result = 
+	let state = Solver_state.create clauses in
+	 solveur_dpll_rec (state) (clauses) (LiteralSet.empty);;
+
+(** 
+   [Test_expose]  
+   > Auxiliary module used for testing internal solver functions.
+
+   - Exposes selected internal functions such as [get_unitaries], [pure], 
+     and [simplify] so they can be directly tested without modifying 
+     the main solver interface.
+   - This module should only be used during the testing phase and not 
+     in production code.
+*)
+module Test_expose = struct
+	let get_unitaries = get_unitaries
+	let pure = pure
+	let simplify = simplify
+end
